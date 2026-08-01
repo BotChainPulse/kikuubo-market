@@ -241,7 +241,7 @@ export const appRouter = createRouter({
         condition: z.enum(["new", "refurbished", "used"]),
         warrantyMonths: z.number().min(0).max(60),
         imageNote: z.string().optional(),
-        imageData: z.string().max(1_500_000).optional(), // photo as data URL
+        imageData: z.string().min(100, "A real photo of the item is required").max(1_500_000), // photo as data URL (required)
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
@@ -257,8 +257,8 @@ export const appRouter = createRouter({
           stock: input.stock,
           condition: input.condition,
           warrantyMonths: input.condition === "new" ? 0 : input.warrantyMonths,
-          imageNote: input.imageNote ?? (input.imageData ? "Photo uploaded by seller" : ""),
-          imageData: input.imageData ?? null,
+          imageNote: input.imageNote ?? "Photo uploaded by seller",
+          imageData: input.imageData,
           status: "pending",
         }).$returningId();
         return { id: row.id };

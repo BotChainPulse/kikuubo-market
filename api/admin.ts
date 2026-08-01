@@ -104,27 +104,8 @@ export const adminRouter = createRouter({
     .mutation(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
+      // Approved listings go live on the market directly (Catalog shows them with the seller's photo)
       await db.update(listings).set({ status: input.status }).where(eq(listings.id, input.id));
-      if (input.status === "approved") {
-        const [l] = await db.select().from(listings).where(eq(listings.id, input.id));
-        if (l) {
-          const slugBase = l.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40) || "item";
-          const slug = `${slugBase}-${l.id}`;
-          await db.insert(products).values({
-            sellerId: l.sellerId,
-            name: l.name,
-            slug,
-            category: l.category,
-            price: l.price,
-            oldPrice: l.oldPrice,
-            stock: l.stock,
-            condition: l.condition,
-            warrantyMonths: l.warrantyMonths,
-            image: "/images/product-default.png",
-            flashSale: false,
-          });
-        }
-      }
       return { ok: true };
     }),
 });

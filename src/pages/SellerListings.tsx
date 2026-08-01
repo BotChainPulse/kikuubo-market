@@ -81,7 +81,7 @@ export default function SellerListings() {
     form.name.trim().length >= 3 &&
     Number(form.price) >= 100 &&
     Number(form.stock) >= 1 &&
-    (photo !== null || form.imageNote.trim().length >= 2) &&
+    photo !== null &&
     (form.condition === 'new' || Number(form.warrantyMonths) >= 1)
 
   const submit = async () => {
@@ -280,9 +280,10 @@ export default function SellerListings() {
               )}
 
               <div>
-                <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Item photo *</label>
+                <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Item photo — required *</label>
                 <p className="mt-1 text-xs text-neutral-500">
-                  Take a photo with your phone or upload one — new, refurbished and used items all need a real photo.
+                  Take a photo of the <b>actual item</b> with your phone — new, refurbished and used items all need a real photo.
+                  Good light, whole item visible, no screenshots or internet downloads. Our team checks every photo before your item goes live; fake photos get your shop flagged.
                 </p>
                 {photo ? (
                   <div className="mt-3 relative w-40">
@@ -299,7 +300,7 @@ export default function SellerListings() {
                 ) : (
                   <label className="mt-3 flex flex-col items-center justify-center gap-2 w-full sm:w-64 h-36 rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50 cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors">
                     <Camera size={24} style={{ color: ORANGE }} />
-                    <span className="text-sm font-semibold text-neutral-600">{photoBusy ? 'Processing…' : 'Tap to take or upload a photo'}</span>
+                    <span className="text-sm font-semibold text-neutral-600">{photoBusy ? 'Processing…' : 'Tap to photograph or upload the item'}</span>
                     <span className="text-[11px] text-neutral-400">JPG or PNG — we compress it automatically</span>
                     <input
                       type="file"
