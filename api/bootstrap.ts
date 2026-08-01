@@ -78,7 +78,8 @@ export const bootstrapRouter = createRouter({
       if (input.key !== BOOTSTRAP_KEY) throw new Error("Invalid setup key");
       const db = getDb();
       // DDL must use the text protocol (mysql2 .query), not prepared statements (.execute)
-      const client: any = (db as any).$client;
+      const raw: any = (db as any).$client;
+      const client: any = typeof raw.promise === "function" ? raw.promise() : raw;
       for (const stmt of TABLES) {
         await client.query(stmt);
       }
