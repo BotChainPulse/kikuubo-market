@@ -19,6 +19,7 @@ import Catalog from './pages/Catalog'
 import Boda from './pages/Boda'
 import Pay from './pages/Pay'
 import MyOrders from './pages/MyOrders'
+import Account from './pages/Account'
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/track" element={<TrackOrder />} />
         <Route path="/orders" element={<MyOrders />} />
+        <Route path="/account" element={<Account />} />
         <Route path="/returns" element={<Returns />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />

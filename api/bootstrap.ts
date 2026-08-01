@@ -64,6 +64,12 @@ const TABLES = [
     \`order_id\` bigint unsigned NOT NULL, \`item_type\` enum('product','menu_item') NOT NULL,
     \`item_id\` bigint unsigned NOT NULL, \`name\` varchar(255) NOT NULL, \`price\` int NOT NULL, \`qty\` int NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS customers (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL,
+    \`location\` text,
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
   `CREATE TABLE IF NOT EXISTS affiliates (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
     \`name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL, \`channel\` varchar(64) NOT NULL,

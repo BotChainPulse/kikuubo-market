@@ -2,12 +2,25 @@ import { z } from "zod";
 import { eq, desc, asc, like, or } from "drizzle-orm";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings } from "../db/schema";
+import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers } from "../db/schema";
 import { adminRouter } from "./admin";
 import { bootstrapRouter } from "./bootstrap";
 
 function orderCode() {
   return "US-" + Math.random().toString(36).slice(2, 7).toUpperCase();
+}
+
+const normPhone = (p: string) => p.replace(/[\s-]+/g, "").trim();
+
+// Every orderer owns an account: keep their name + delivery location up to date.
+async function upsertCustomer(db: any, name: string, phone: string, location?: string) {
+  const p = normPhone(phone);
+  const [existing] = await db.select().from(customers).where(eq(customers.phone, p));
+  if (existing) {
+    await db.update(customers).set({ name, location: location ?? existing.location }).where(eq(customers.id, existing.id));
+  } else {
+    await db.insert(customers).values({ name, phone: p, location: location ?? null });
+  }
 }
 
 export const appRouter = createRouter({
@@ -160,10 +173,12 @@ export const appRouter = createRouter({
         const db = getDb();
         const subtotal = input.items.reduce((s, i) => s + i.price * i.qty, 0);
         const total = subtotal + input.deliveryFee;
+        const phone = normPhone(input.phone);
+        await upsertCustomer(db, input.customerName, phone, input.address);
         const [row] = await db.insert(orders).values({
           code: orderCode(),
           customerName: input.customerName,
-          phone: input.phone,
+          phone,
           address: input.address,
           paymentMethod: input.paymentMethod,
           subtotal,
@@ -178,7 +193,7 @@ export const appRouter = createRouter({
       }),
     byPhone: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
       const db = getDb();
-      const phone = input.phone.trim();
+      const phone = normPhone(input.phone);
       const myOrders = await db.select().from(orders).where(eq(orders.phone, phone)).orderBy(desc(orders.createdAt)).limit(20);
       const withItems = await Promise.all(
         myOrders.map(async (o) => ({ ...o, items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)) })),
@@ -188,7 +203,7 @@ export const appRouter = createRouter({
     track: publicQuery.input(z.object({ code: z.string(), phone: z.string() })).query(async ({ input }) => {
       const db = getDb();
       const [order] = await db.select().from(orders).where(eq(orders.code, input.code.trim().toUpperCase()));
-      if (!order || order.phone !== input.phone.trim()) return null;
+      if (!order || order.phone !== normPhone(input.phone)) return null;
       const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
       return { ...order, items };
     }),
@@ -256,6 +271,33 @@ export const appRouter = createRouter({
         }).$returningId();
         return { id: row.id };
       }),
+  }),
+
+  customers: createRouter({
+    // Create or update the buyer's account (name + delivery location)
+    register: publicQuery
+      .input(z.object({
+        name: z.string().min(2),
+        phone: z.string().min(9),
+        location: z.string().min(3),
+      }))
+      .mutation(async ({ input }) => {
+        const db = getDb();
+        await upsertCustomer(db, input.name, input.phone, input.location);
+        const [row] = await db.select().from(customers).where(eq(customers.phone, normPhone(input.phone)));
+        return row;
+      }),
+    // Profile + full order history — the buyer's account home
+    me: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
+      const db = getDb();
+      const phone = normPhone(input.phone);
+      const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+      const myOrders = await db.select().from(orders).where(eq(orders.phone, phone)).orderBy(desc(orders.createdAt)).limit(20);
+      const withItems = await Promise.all(
+        myOrders.map(async (o) => ({ ...o, items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)) })),
+      );
+      return { customer: customer ?? null, orders: withItems };
+    }),
   }),
 
   affiliates: createRouter({

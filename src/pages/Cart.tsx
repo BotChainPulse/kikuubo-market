@@ -6,10 +6,12 @@ import Footer from '../components/Footer'
 import { fmt, useCart } from '../lib/cart'
 import { trpc } from '@/providers/trpc'
 import { ORANGE } from '../lib/site'
+import { getAccount, saveAccount } from '../lib/account'
 
 export default function Cart() {
   const { items, setQty, remove, clear, subtotal, count } = useCart()
-  const [form, setForm] = useState({ name: '', phone: '', address: '', payment: 'mtn_momo' as 'mtn_momo' | 'airtel_money' | 'cash' })
+  const acc = getAccount()
+  const [form, setForm] = useState({ name: acc?.name ?? '', phone: acc?.phone ?? '', address: acc?.location ?? '', payment: 'mtn_momo' as 'mtn_momo' | 'airtel_money' | 'cash' })
   const createOrder = trpc.orders.create.useMutation()
   const [placed, setPlaced] = useState<{ code: string; total: number } | null>(null)
 
@@ -26,7 +28,8 @@ export default function Cart() {
       items: items.map((i) => ({ itemType: i.itemType, itemId: i.itemId, name: i.name, price: i.price, qty: i.qty })),
       deliveryFee,
     })
-    localStorage.setItem('ugsouq_myphone', form.phone.trim())
+    // The buyer owns an account: remember details on this device (server auto-saves too)
+    saveAccount({ name: form.name.trim(), phone: form.phone.replace(/[\s-]+/g, ''), location: form.address.trim() })
     setPlaced({ code: order.code, total: order.total })
     clear()
   }
@@ -43,7 +46,7 @@ export default function Cart() {
             <p className="mt-1 text-3xl font-extrabold tracking-widest" style={{ color: ORANGE }}>{placed.code}</p>
             <p className="mt-3 text-sm text-neutral-600">Total: <b>{fmt(placed.total)}</b> · We'll confirm on WhatsApp/SMS shortly.</p>
             <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-              <Link to="/orders" className="px-6 py-3 rounded-full text-sm font-bold text-white" style={{ background: ORANGE }}>View my orders</Link>
+              <Link to="/account" className="px-6 py-3 rounded-full text-sm font-bold text-white" style={{ background: ORANGE }}>View my account & orders</Link>
               <Link to="/" className="px-6 py-3 rounded-full text-sm font-bold border border-neutral-300 hover:border-neutral-500">Continue shopping</Link>
             </div>
             <p className="mt-4 text-xs text-neutral-400">Your orders are always at <b>My Orders</b> in the menu — just enter your phone number.</p>

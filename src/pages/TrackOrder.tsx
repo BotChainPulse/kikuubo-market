@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { PackageSearch, Truck, Package, CheckCircle2, CircleDashed, XCircle } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -22,9 +23,9 @@ export default function TrackOrder() {
   const stageIndex = order ? STAGES.findIndex((s) => s.key === order.status) : -1
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] text-neutral-900 antialiased">
+    <div className="min-h-screen bg-[#faf9f7] text-neutral-900 antialiased flex flex-col">
       <Header />
-      <div className="mx-auto max-w-xl px-4 py-12">
+      <div className="mx-auto max-w-xl w-full px-4 py-12 flex-1">
         <h1 className="text-2xl font-extrabold flex items-center gap-2"><PackageSearch size={24} style={{ color: ORANGE }} /> Track your order</h1>
         <p className="text-sm text-neutral-600 mt-1">Enter the order code from checkout plus the phone number you ordered with.</p>
 
@@ -81,6 +82,10 @@ export default function TrackOrder() {
             </div>
           </div>
         )}
+
+        <div className="mt-8 bg-orange-50 border border-orange-100 rounded-2xl p-5 text-sm text-neutral-700">
+          Lost your order code? <Link to="/account" className="font-bold" style={{ color: ORANGE }}>Open My Account</Link> — all your orders are saved there automatically.
+        </div>
       </div>
       <Footer />
     </div>

@@ -114,6 +114,14 @@ export const orderItems = mysqlTable("order_items", {
   qty: int("qty").notNull(),
 });
 
+export const customers = mysqlTable("customers", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  location: text("location"), // delivery area / landmark for easy delivery
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const affiliates = mysqlTable("affiliates", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
