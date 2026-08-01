@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { ShieldCheck, Store, Package, Users, LayoutDashboard, LogOut, Check, X, ChevronDown, ClipboardList } from 'lucide-react'
+import { ShieldCheck, Store, Package, Users, LayoutDashboard, LogOut, Check, X, ChevronDown, ClipboardList, Wallet, Download } from 'lucide-react'
 import { trpc } from '../providers/trpc'
 import { fmt } from '../lib/cart'
 import { paymentLabel } from '../lib/payStatus'
@@ -11,7 +11,7 @@ const ORDER_STATUSES = ['placed', 'confirmed', 'on_the_way', 'delivered', 'cance
 const STATUS_LABEL: Record<string, string> = {
   placed: 'Placed', confirmed: 'Confirmed', on_the_way: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled',
 }
-type Tab = 'overview' | 'sellers' | 'listings' | 'orders' | 'affiliates'
+type Tab = 'overview' | 'sellers' | 'listings' | 'orders' | 'accounts' | 'affiliates'
 
 export default function Admin() {
   const [key, setKey] = useState(() => sessionStorage.getItem(KEY_STORAGE) ?? '')
@@ -78,7 +78,7 @@ export default function Admin() {
           </div>
         </div>
         <div className="mx-auto max-w-7xl px-4 flex gap-1 text-sm">
-          {([['overview', LayoutDashboard, 'Overview'], ['sellers', Store, 'Sellers'], ['listings', ClipboardList, 'Listings'], ['orders', Package, 'Orders'], ['affiliates', Users, 'Affiliates']] as const).map(([t, Icon, label]) => (
+          {([['overview', LayoutDashboard, 'Overview'], ['sellers', Store, 'Sellers'], ['listings', ClipboardList, 'Listings'], ['orders', Package, 'Orders'], ['accounts', Wallet, 'Accounts'], ['affiliates', Users, 'Affiliates']] as const).map(([t, Icon, label]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -94,6 +94,7 @@ export default function Admin() {
         {tab === 'sellers' && <Sellers adminKey={key} />}
         {tab === 'listings' && <Listings adminKey={key} />}
         {tab === 'orders' && <Orders adminKey={key} />}
+        {tab === 'accounts' && <Accounts adminKey={key} />}
         {tab === 'affiliates' && <Affiliates adminKey={key} />}
       </main>
     </div>
@@ -342,6 +343,107 @@ function Orders({ adminKey }: { adminKey: string }) {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+function Accounts({ adminKey }: { adminKey: string }) {
+  const { data, isLoading } = trpc.admin.accounts.useQuery({ key: adminKey })
+  if (isLoading || !data) return <p className="text-neutral-500">Loading…</p>
+  const t = data.totals
+
+  const exportCsv = () => {
+    const header = ['Order code', 'Date', 'Customer', 'Payment method', 'Payment status', 'Order status', 'Sale subtotal', 'Delivery fee', 'UG Souq commission', 'Seller payout', 'Order total']
+    const lines = data.entries.map((e) => [
+      e.code,
+      new Date(e.date).toLocaleString('en-UG'),
+      e.customer,
+      e.paymentMethod,
+      e.paymentStatus,
+      e.status,
+      e.subtotal,
+      e.deliveryFee,
+      e.commission,
+      e.sellerPayout,
+      e.total,
+    ])
+    const csv = [header, ...lines].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `ugsouq-accounts-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  const cards: [string, number, string?][] = [
+    ['Product sales', t.sales],
+    ['UG Souq commission earned', t.commissionEarned, 'text-emerald-700'],
+    ['Delivery fees collected', t.deliveryFees],
+    ['Seller payouts owed', t.sellerPayoutsOwed, 'text-orange-600'],
+    ['Received from buyers', t.receivedFromBuyers, 'text-emerald-700'],
+    ['Awaiting buyer payment', t.awaitingBuyerPayment, 'text-red-600'],
+  ]
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="text-sm text-neutral-600">
+          Transparent books — commission is <b>{(data.rate * 100).toFixed(0)}%</b> of each sale (delivery fees are not commissioned). {t.orders} active orders.
+        </p>
+        <button onClick={exportCsv} className="flex items-center gap-1.5 text-xs font-bold text-white px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700">
+          <Download size={14} /> Export CSV
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {cards.map(([label, value, cls]) => (
+          <div key={label} className="bg-white rounded-xl border border-neutral-200 p-4">
+            <p className="text-[11px] font-semibold text-neutral-500 leading-tight">{label}</p>
+            <p className={`mt-1.5 font-extrabold text-sm sm:text-base ${cls ?? ''}`}>{fmt(value)}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-xl border border-neutral-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-[900px]">
+          <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+            <tr>
+              <th className="px-4 py-2.5">Code</th>
+              <th className="px-4 py-2.5">Date</th>
+              <th className="px-4 py-2.5">Customer</th>
+              <th className="px-4 py-2.5">Sale</th>
+              <th className="px-4 py-2.5">Delivery</th>
+              <th className="px-4 py-2.5 text-emerald-700">Commission</th>
+              <th className="px-4 py-2.5 text-orange-600">Seller payout</th>
+              <th className="px-4 py-2.5">Payment</th>
+              <th className="px-4 py-2.5">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.entries.map((e) => (
+              <tr key={e.id} className="border-t border-neutral-100">
+                <td className="px-4 py-2.5 font-bold">{e.code}</td>
+                <td className="px-4 py-2.5 text-neutral-500 whitespace-nowrap">{new Date(e.date).toLocaleDateString('en-UG')}</td>
+                <td className="px-4 py-2.5">{e.customer}</td>
+                <td className="px-4 py-2.5">{fmt(e.subtotal)}</td>
+                <td className="px-4 py-2.5">{fmt(e.deliveryFee)}</td>
+                <td className="px-4 py-2.5 font-semibold text-emerald-700">{fmt(e.commission)}</td>
+                <td className="px-4 py-2.5 font-semibold text-orange-600">{fmt(e.sellerPayout)}</td>
+                <td className="px-4 py-2.5">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${e.paymentStatus === 'paid' ? 'bg-emerald-50 text-emerald-700' : e.paymentStatus === 'pending_confirmation' ? 'bg-amber-50 text-amber-700' : 'bg-neutral-100 text-neutral-500'}`}>
+                    {e.paymentStatus === 'paid' ? 'Paid' : e.paymentStatus === 'pending_confirmation' ? 'Confirming' : e.paymentMethod === 'cash' ? 'Cash' : 'Unpaid'}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-neutral-500">{e.status}</td>
+              </tr>
+            ))}
+            {data.entries.length === 0 && (
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-neutral-400">No orders yet — the ledger fills as orders come in.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, desc, asc, like, or } from "drizzle-orm";
-import { createRouter, publicQuery } from "./middleware";
+import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
 import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers } from "../db/schema";
 import { adminRouter } from "./admin";
@@ -15,6 +15,8 @@ function orderCode() {
 }
 
 const normPhone = (p: string) => p.replace(/[\s-]+/g, "").trim();
+
+
 
 // Every orderer owns an account: keep their name + delivery location up to date.
 async function upsertCustomer(db: any, name: string, phone: string, location?: string) {
@@ -186,6 +188,7 @@ export const appRouter = createRouter({
         const subtotal = input.items.reduce((s, i) => s + i.price * i.qty, 0);
         const total = subtotal + input.deliveryFee;
         const phone = normPhone(input.phone);
+        const commissionFee = Math.round(subtotal * COMMISSION_RATE);
         await upsertCustomer(db, input.customerName, phone, input.address);
         const [row] = await db.insert(orders).values({
           code: orderCode(),
@@ -195,6 +198,7 @@ export const appRouter = createRouter({
           paymentMethod: input.paymentMethod,
           subtotal,
           deliveryFee: input.deliveryFee,
+          commissionFee,
           total,
         }).$returningId();
         await db.insert(orderItems).values(

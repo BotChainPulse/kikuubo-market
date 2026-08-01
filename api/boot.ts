@@ -17,6 +17,49 @@ app.use("/api/trpc/*", async (c) => {
     createContext,
   });
 });
+// DukaBooks sync: read-only accounts summary, protected by the admin key.
+// GET /api/accounts/summary?key=ADMIN_KEY
+app.get("/api/accounts/summary", async (c) => {
+  const key = c.req.query("key") ?? "";
+  if (key !== (process.env.ADMIN_KEY ?? "ugsouq-admin-2026")) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  const { getDb } = await import("./queries/connection");
+  const { orders } = await import("../db/schema");
+  const { desc } = await import("drizzle-orm");
+  const { COMMISSION_RATE } = await import("./middleware");
+  const db = getDb();
+  const rows = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(500);
+  const active = rows.filter((o) => o.status !== "cancelled");
+  const paid = active.filter((o) => o.paymentStatus === "paid");
+  return c.json({
+    commissionRate: COMMISSION_RATE,
+    generatedAt: new Date().toISOString(),
+    totals: {
+      orders: active.length,
+      sales: active.reduce((s, o) => s + o.subtotal, 0),
+      deliveryFees: active.reduce((s, o) => s + o.deliveryFee, 0),
+      commissionEarned: active.reduce((s, o) => s + o.commissionFee, 0),
+      sellerPayoutsOwed: active.reduce((s, o) => s + (o.subtotal - o.commissionFee), 0),
+      receivedFromBuyers: paid.reduce((s, o) => s + o.total, 0),
+      awaitingBuyerPayment: active.filter((o) => o.paymentStatus !== "paid").reduce((s, o) => s + o.total, 0),
+    },
+    entries: active.map((o) => ({
+      code: o.code,
+      date: o.createdAt,
+      customer: o.customerName,
+      paymentMethod: o.paymentMethod,
+      paymentStatus: o.paymentStatus,
+      status: o.status,
+      subtotal: o.subtotal,
+      deliveryFee: o.deliveryFee,
+      commission: o.commissionFee,
+      sellerPayout: o.subtotal - o.commissionFee,
+      total: o.total,
+    })),
+  });
+});
+
 app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 
 export default app;

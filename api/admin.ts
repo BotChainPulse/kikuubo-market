@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, desc } from "drizzle-orm";
-import { createRouter, publicQuery } from "./middleware";
+import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
 import { sellers, orders, orderItems, affiliates, products, listings } from "../db/schema";
 
@@ -89,6 +89,42 @@ export const adminRouter = createRouter({
       await db.update(orders).set({ paymentStatus: input.status }).where(eq(orders.id, input.id));
       return { ok: true };
     }),
+
+  // Transparent books: every order's sale, delivery fee, commission and seller payout
+  accounts: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    const rows = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(500);
+    const active = rows.filter((o) => o.status !== "cancelled");
+    const paid = active.filter((o) => o.paymentStatus === "paid");
+    const entries = active.map((o) => ({
+      id: o.id,
+      code: o.code,
+      date: o.createdAt,
+      customer: o.customerName,
+      paymentMethod: o.paymentMethod,
+      paymentStatus: o.paymentStatus,
+      status: o.status,
+      subtotal: o.subtotal,
+      deliveryFee: o.deliveryFee,
+      commission: o.commissionFee,
+      sellerPayout: o.subtotal - o.commissionFee,
+      total: o.total,
+    }));
+    return {
+      rate: COMMISSION_RATE,
+      totals: {
+        orders: active.length,
+        sales: active.reduce((s, o) => s + o.subtotal, 0),
+        deliveryFees: active.reduce((s, o) => s + o.deliveryFee, 0),
+        commissionEarned: active.reduce((s, o) => s + o.commissionFee, 0),
+        sellerPayoutsOwed: active.reduce((s, o) => s + (o.subtotal - o.commissionFee), 0),
+        receivedFromBuyers: paid.reduce((s, o) => s + o.total, 0),
+        awaitingBuyerPayment: active.filter((o) => o.paymentStatus !== "paid").reduce((s, o) => s + o.total, 0),
+      },
+      entries,
+    };
+  }),
 
   affiliates: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
     requireAdmin(input.key);

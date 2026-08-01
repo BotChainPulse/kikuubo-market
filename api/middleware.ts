@@ -8,3 +8,6 @@ const t = initTRPC.context<TrpcContext>().create({
 
 export const createRouter = t.router;
 export const publicQuery = t.procedure;
+
+// UG Souq's marketplace commission on the product subtotal (delivery fee is not commissioned)
+export const COMMISSION_RATE = 0.07;

@@ -81,6 +81,8 @@ const TABLES = [
 const ALTERS = [
   "ALTER TABLE orders ADD COLUMN \`payment_status\` enum('unpaid','pending_confirmation','paid') NOT NULL DEFAULT 'unpaid'",
   "ALTER TABLE orders ADD COLUMN \`payment_ref\` varchar(64) NULL",
+  "ALTER TABLE orders ADD COLUMN \`commission_fee\` int NOT NULL DEFAULT 0",
+  "UPDATE orders SET commission_fee = ROUND(subtotal * 0.07) WHERE commission_fee = 0 AND subtotal > 0",
 ];
 
 export const bootstrapRouter = createRouter({
