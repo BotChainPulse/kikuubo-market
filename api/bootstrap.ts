@@ -10,64 +10,64 @@ const BOOTSTRAP_KEY = "ugsouq-setup-2026";
 
 const TABLES = [
   `CREATE TABLE IF NOT EXISTS sellers (
-    id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    shop_name varchar(255) NOT NULL, owner_name varchar(255) NOT NULL, phone varchar(32) NOT NULL,
-    email varchar(255), id_type varchar(64), id_number varchar(64), id_photo_name varchar(255),
-    district varchar(64), landmark varchar(255), tin varchar(32),
-    payout_method varchar(32), payout_number varchar(32),
-    verified boolean NOT NULL DEFAULT false, rating int NOT NULL DEFAULT 45,
-    status enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `shop_name` varchar(255) NOT NULL, `owner_name` varchar(255) NOT NULL, `phone` varchar(32) NOT NULL,
+    `email` varchar(255), `id_type` varchar(64), `id_number` varchar(64), `id_photo_name` varchar(255),
+    `district` varchar(64), `landmark` varchar(255), `tin` varchar(32),
+    `payout_method` varchar(32), `payout_number` varchar(32),
+    `verified` boolean NOT NULL DEFAULT false, `rating` int NOT NULL DEFAULT 45,
+    `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS products (
-    id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    seller_id bigint unsigned NOT NULL, name varchar(255) NOT NULL, slug varchar(255) NOT NULL,
-    category varchar(64) NOT NULL, price int NOT NULL, old_price int, image varchar(255) NOT NULL,
-    stock int NOT NULL DEFAULT 0, condition enum('new','refurbished','used') NOT NULL DEFAULT 'new',
-    warranty_months int NOT NULL DEFAULT 0, flash_sale boolean NOT NULL DEFAULT false,
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `seller_id` bigint unsigned NOT NULL, `name` varchar(255) NOT NULL, `slug` varchar(255) NOT NULL,
+    `category` varchar(64) NOT NULL, `price` int NOT NULL, `old_price` int, `image` varchar(255) NOT NULL,
+    `stock` int NOT NULL DEFAULT 0, `condition` enum('new','refurbished','used') NOT NULL DEFAULT 'new',
+    `warranty_months` int NOT NULL DEFAULT 0, `flash_sale` boolean NOT NULL DEFAULT false,
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS listings (
-    id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    seller_id bigint unsigned NOT NULL, name varchar(255) NOT NULL, category varchar(64) NOT NULL,
-    price int NOT NULL, old_price int, stock int NOT NULL DEFAULT 1,
-    condition enum('new','refurbished','used') NOT NULL DEFAULT 'new',
-    warranty_months int NOT NULL DEFAULT 0, image_note varchar(255) NOT NULL,
-    image_data mediumtext,
-    status enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `seller_id` bigint unsigned NOT NULL, `name` varchar(255) NOT NULL, `category` varchar(64) NOT NULL,
+    `price` int NOT NULL, `old_price` int, `stock` int NOT NULL DEFAULT 1,
+    `condition` enum('new','refurbished','used') NOT NULL DEFAULT 'new',
+    `warranty_months` int NOT NULL DEFAULT 0, `image_note` varchar(255) NOT NULL,
+    `image_data` mediumtext,
+    `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS restaurants (
-    id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name varchar(255) NOT NULL, slug varchar(255) NOT NULL, cuisine varchar(128) NOT NULL,
-    area varchar(128) NOT NULL, delivery_mins int NOT NULL DEFAULT 35, delivery_fee int NOT NULL DEFAULT 3000,
-    min_order int NOT NULL DEFAULT 10000, rating int NOT NULL DEFAULT 45, image varchar(255) NOT NULL,
-    open boolean NOT NULL DEFAULT true, featured boolean NOT NULL DEFAULT false,
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name` varchar(255) NOT NULL, `slug` varchar(255) NOT NULL, `cuisine` varchar(128) NOT NULL,
+    `area` varchar(128) NOT NULL, `delivery_mins` int NOT NULL DEFAULT 35, `delivery_fee` int NOT NULL DEFAULT 3000,
+    `min_order` int NOT NULL DEFAULT 10000, `rating` int NOT NULL DEFAULT 45, `image` varchar(255) NOT NULL,
+    `open` boolean NOT NULL DEFAULT true, `featured` boolean NOT NULL DEFAULT false,
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS menu_items (
-    id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    restaurant_id bigint unsigned NOT NULL, name varchar(255) NOT NULL, description text,
-    price int NOT NULL, image varchar(255), popular boolean NOT NULL DEFAULT false,
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `restaurant_id` bigint unsigned NOT NULL, `name` varchar(255) NOT NULL, `description` text,
+    `price` int NOT NULL, `image` varchar(255), `popular` boolean NOT NULL DEFAULT false,
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS orders (
-    id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    code varchar(16) NOT NULL, customer_name varchar(255) NOT NULL, phone varchar(32) NOT NULL,
-    address text NOT NULL, payment_method enum('mtn_momo','airtel_money','cash') NOT NULL,
-    subtotal int NOT NULL, delivery_fee int NOT NULL DEFAULT 0, total int NOT NULL,
-    status enum('placed','confirmed','on_the_way','delivered','cancelled') NOT NULL DEFAULT 'placed',
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `code` varchar(16) NOT NULL, `customer_name` varchar(255) NOT NULL, `phone` varchar(32) NOT NULL,
+    `address` text NOT NULL, `payment_method` enum('mtn_momo','airtel_money','cash') NOT NULL,
+    `subtotal` int NOT NULL, `delivery_fee` int NOT NULL DEFAULT 0, `total` int NOT NULL,
+    `status` enum('placed','confirmed','on_the_way','delivered','cancelled') NOT NULL DEFAULT 'placed',
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS order_items (
-    id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    order_id bigint unsigned NOT NULL, item_type enum('product','menu_item') NOT NULL,
-    item_id bigint unsigned NOT NULL, name varchar(255) NOT NULL, price int NOT NULL, qty int NOT NULL
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `order_id` bigint unsigned NOT NULL, `item_type` enum('product','menu_item') NOT NULL,
+    `item_id` bigint unsigned NOT NULL, `name` varchar(255) NOT NULL, `price` int NOT NULL, `qty` int NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS affiliates (
-    id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name varchar(255) NOT NULL, phone varchar(32) NOT NULL, channel varchar(64) NOT NULL,
-    code varchar(16) NOT NULL, created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `name` varchar(255) NOT NULL, `phone` varchar(32) NOT NULL, `channel` varchar(64) NOT NULL,
+    `code` varchar(16) NOT NULL, `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
 ];
 
