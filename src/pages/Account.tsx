@@ -7,6 +7,7 @@ import { trpc } from '@/providers/trpc'
 import { fmt } from '../lib/cart'
 import { ORANGE } from '../lib/site'
 import { getAccount, saveAccount, clearAccount, type Account } from '../lib/account'
+import { paymentLabel } from '../lib/payStatus'
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string; Icon: any }> = {
@@ -137,7 +138,10 @@ export default function AccountPage() {
                         <p className="font-extrabold font-mono tracking-widest">{o.code}</p>
                         <p className="text-xs text-neutral-500 mt-0.5">{new Date(o.createdAt).toLocaleString('en-UG')}</p>
                       </div>
-                      <StatusPill status={o.status} />
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${paymentLabel(o).cls}`}>{paymentLabel(o).text}</span>
+                        <StatusPill status={o.status} />
+                      </div>
                     </div>
                     <div className="mt-3 space-y-1 text-sm border-t border-neutral-100 pt-3">
                       {o.items.map((i) => (

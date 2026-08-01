@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { ShieldCheck, Store, Package, Users, LayoutDashboard, LogOut, Check, X, ChevronDown, ClipboardList } from 'lucide-react'
 import { trpc } from '../providers/trpc'
 import { fmt } from '../lib/cart'
+import { paymentLabel } from '../lib/payStatus'
 import { ORANGE } from '../lib/site'
 
 const KEY_STORAGE = 'ugsouq_admin_key'
@@ -274,6 +275,9 @@ function Orders({ adminKey }: { adminKey: string }) {
   const setStatus = trpc.admin.setOrderStatus.useMutation({
     onSuccess: () => { utils.admin.orders.invalidate(); utils.admin.stats.invalidate() },
   })
+  const setPayment = trpc.admin.setPaymentStatus.useMutation({
+    onSuccess: () => { utils.admin.orders.invalidate(); utils.admin.stats.invalidate() },
+  })
   const [openId, setOpenId] = useState<number | null>(null)
   if (isLoading || !data) return <p className="text-neutral-500">Loading…</p>
   if (data.length === 0) return <p className="text-neutral-500">No orders yet.</p>
@@ -286,6 +290,7 @@ function Orders({ adminKey }: { adminKey: string }) {
               <ChevronDown size={16} className={`transition-transform ${openId === o.id ? 'rotate-180' : ''}`} />
               <span className="font-bold">{o.code}</span>
               <StatusPill status={o.status} />
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${paymentLabel(o).cls}`}>{paymentLabel(o).text}</span>
             </button>
             <div className="flex items-center gap-3">
               <span className="font-extrabold">{fmt(o.total)}</span>
@@ -311,6 +316,29 @@ function Orders({ adminKey }: { adminKey: string }) {
               ))}
               <li className="flex justify-between text-neutral-500"><span>Delivery</span><span>{fmt(o.deliveryFee)}</span></li>
             </ul>
+          )}
+          {openId === o.id && o.paymentMethod !== 'cash' && (
+            <div className="mt-3 border-t border-neutral-100 pt-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="text-neutral-500">Payment ({o.paymentMethod.replace('_', ' ')}): </span>
+                <b>{paymentLabel(o).text}</b>
+                {o.paymentRef && <span className="ml-2 font-mono text-xs bg-neutral-100 px-2 py-0.5 rounded">Ref: {o.paymentRef}</span>}
+              </div>
+              {o.paymentStatus !== 'paid' ? (
+                <button
+                  onClick={() => setPayment.mutate({ key: adminKey, id: o.id, status: 'paid' })}
+                  disabled={setPayment.isPending}
+                  className="text-xs font-bold text-white px-4 py-2 rounded-full bg-green-600 disabled:opacity-40">
+                  ✓ Mark paid
+                </button>
+              ) : (
+                <button
+                  onClick={() => setPayment.mutate({ key: adminKey, id: o.id, status: 'unpaid' })}
+                  className="text-xs font-semibold text-neutral-500 hover:text-red-600">
+                  Undo paid
+                </button>
+              )}
+            </div>
           )}
         </div>
       ))}

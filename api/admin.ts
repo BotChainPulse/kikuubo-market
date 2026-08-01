@@ -80,6 +80,16 @@ export const adminRouter = createRouter({
       return { ok: true };
     }),
 
+  // Admin verifies the MoMo/Airtel transaction ID on their phone, then marks the order paid
+  setPaymentStatus: publicQuery
+    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["unpaid", "pending_confirmation", "paid"]) }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      await db.update(orders).set({ paymentStatus: input.status }).where(eq(orders.id, input.id));
+      return { ok: true };
+    }),
+
   affiliates: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
     requireAdmin(input.key);
     const db = getDb();

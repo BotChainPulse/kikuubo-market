@@ -101,6 +101,8 @@ export const orders = mysqlTable("orders", {
   deliveryFee: int("delivery_fee").notNull().default(0),
   total: int("total").notNull(),
   status: mysqlEnum("status", ["placed", "confirmed", "on_the_way", "delivered", "cancelled"]).notNull().default("placed"),
+  paymentStatus: mysqlEnum("payment_status", ["unpaid", "pending_confirmation", "paid"]).notNull().default("unpaid"),
+  paymentRef: varchar("payment_ref", { length: 64 }), // MoMo/Airtel transaction ID the buyer enters after sending money
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -77,6 +77,12 @@ const TABLES = [
   )`,
 ];
 
+// Column upgrades for existing tables (ignored when the column already exists)
+const ALTERS = [
+  "ALTER TABLE orders ADD COLUMN \`payment_status\` enum('unpaid','pending_confirmation','paid') NOT NULL DEFAULT 'unpaid'",
+  "ALTER TABLE orders ADD COLUMN \`payment_ref\` varchar(64) NULL",
+];
+
 export const bootstrapRouter = createRouter({
   setup: publicQuery
     .input(z.object({ key: z.string() }))
@@ -88,6 +94,9 @@ export const bootstrapRouter = createRouter({
       const client: any = typeof raw.promise === "function" ? raw.promise() : raw;
       for (const stmt of TABLES) {
         await client.query(stmt);
+      }
+      for (const stmt of ALTERS) {
+        try { await client.query(stmt); } catch (e: any) { if (e?.errno !== 1060) throw e; } // 1060 = duplicate column
       }
       const [countRows]: any = await db.execute(sql.raw("SELECT COUNT(*) AS n FROM products"));
       const rows = Array.isArray(countRows) ? countRows : [countRows];

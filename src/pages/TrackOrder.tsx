@@ -6,6 +6,7 @@ import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
 import { fmt } from '../lib/cart'
 import { ORANGE } from '../lib/site'
+import { paymentLabel } from '../lib/payStatus'
 
 const STAGES = [
   { key: 'placed', label: 'Order placed', icon: Package },
@@ -54,7 +55,10 @@ export default function TrackOrder() {
                 <p className="font-extrabold font-mono tracking-widest">{order.code}</p>
                 <p className="text-xs text-neutral-500 mt-0.5">{new Date(order.createdAt).toLocaleString('en-UG')}</p>
               </div>
-              <p className="font-extrabold" style={{ color: ORANGE }}>{fmt(order.total)}</p>
+              <div className="text-right">
+                <p className="font-extrabold" style={{ color: ORANGE }}>{fmt(order.total)}</p>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${paymentLabel(order).cls}`}>{paymentLabel(order).text}</span>
+              </div>
             </div>
 
             {order.status === 'cancelled' ? (
