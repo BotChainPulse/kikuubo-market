@@ -37,6 +37,7 @@ export default function Header() {
           <div className="hidden sm:flex items-center gap-4">
             <Link to="/sell" className="hover:text-orange-400">Sell on UG Souq</Link>
             <Link to="/affiliates" className="hover:text-orange-400">Affiliates</Link>
+            <Link to="/orders" className="hover:text-orange-400">My Orders</Link>
             <Link to="/track" className="hover:text-orange-400">Track Order</Link>
             <a href={WA_LINK} target="_blank" rel="noreferrer" className="hover:text-orange-400 flex items-center gap-1"><CircleHelp size={12} /> Help</a>
           </div>

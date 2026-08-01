@@ -26,6 +26,7 @@ export default function Cart() {
       items: items.map((i) => ({ itemType: i.itemType, itemId: i.itemId, name: i.name, price: i.price, qty: i.qty })),
       deliveryFee,
     })
+    localStorage.setItem('ugsouq_myphone', form.phone.trim())
     setPlaced({ code: order.code, total: order.total })
     clear()
   }
@@ -40,7 +41,12 @@ export default function Cart() {
             <h1 className="mt-4 text-2xl font-extrabold">Order placed!</h1>
             <p className="mt-2 text-neutral-600">Your order code is</p>
             <p className="mt-1 text-3xl font-extrabold tracking-widest" style={{ color: ORANGE }}>{placed.code}</p>
-            <p className="mt-3 text-sm text-neutral-600">Total: <b>{fmt(placed.total)}</b> · Keep your code and phone number to track the order. We'll confirm on WhatsApp/SMS shortly.</p>
+            <p className="mt-3 text-sm text-neutral-600">Total: <b>{fmt(placed.total)}</b> · We'll confirm on WhatsApp/SMS shortly.</p>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link to="/orders" className="px-6 py-3 rounded-full text-sm font-bold text-white" style={{ background: ORANGE }}>View my orders</Link>
+              <Link to="/" className="px-6 py-3 rounded-full text-sm font-bold border border-neutral-300 hover:border-neutral-500">Continue shopping</Link>
+            </div>
+            <p className="mt-4 text-xs text-neutral-400">Your orders are always at <b>My Orders</b> in the menu — just enter your phone number.</p>
             <div className="mt-6 flex justify-center gap-3">
               <Link to="/track" className="text-sm font-bold text-white px-6 py-3 rounded-full" style={{ background: ORANGE }}>Track order</Link>
               <Link to="/" className="text-sm font-bold px-6 py-3 rounded-full border border-neutral-300">Continue shopping</Link>

@@ -176,6 +176,15 @@ export const appRouter = createRouter({
         const [order] = await db.select().from(orders).where(eq(orders.id, row.id));
         return order;
       }),
+    byPhone: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
+      const db = getDb();
+      const phone = input.phone.trim();
+      const myOrders = await db.select().from(orders).where(eq(orders.phone, phone)).orderBy(desc(orders.createdAt)).limit(20);
+      const withItems = await Promise.all(
+        myOrders.map(async (o) => ({ ...o, items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)) })),
+      );
+      return withItems;
+    }),
     track: publicQuery.input(z.object({ code: z.string(), phone: z.string() })).query(async ({ input }) => {
       const db = getDb();
       const [order] = await db.select().from(orders).where(eq(orders.code, input.code.trim().toUpperCase()));

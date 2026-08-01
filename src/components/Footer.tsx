@@ -40,6 +40,7 @@ export default function Footer() {
           <h4 className="text-white font-bold mb-3">Support</h4>
           <ul className="space-y-2 text-neutral-400">
             <li><a href={WA_LINK} target="_blank" rel="noreferrer" className="hover:text-white">WhatsApp support</a></li>
+            <li><Link to="/orders" className="hover:text-white">My Orders</Link></li>
             <li><Link to="/track" className="hover:text-white">Track your order</Link></li>
             <li><Link to="/returns" className="hover:text-white">Returns & refunds</Link></li>
             <li><Link to="/privacy" className="hover:text-white">Privacy & data protection</Link></li>
