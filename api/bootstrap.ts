@@ -115,4 +115,49 @@ export const bootstrapRouter = createRouter({
       const summary = Array.isArray(after) ? after[0] : after;
       return { ok: true, seeded, ...summary };
     }),
+
+  // One-off import: load the Kikuubo Suppliers wholesale catalog as real products
+  seedSuppliers: publicQuery
+    .input(z.object({ key: z.string() }))
+    .mutation(async ({ input }) => {
+      if (input.key !== BOOTSTRAP_KEY) throw new Error("Invalid setup key");
+      const db = getDb();
+      const { sellers, products } = await import("../db/schema");
+      const { eq } = await import("drizzle-orm");
+      const catalog: any[] = (await import("../db/kikuubo.json")).default as any[];
+      let [seller] = await db.select().from(sellers).where(eq(sellers.shopName, "Kikuubo Suppliers"));
+      if (!seller) {
+        const [row] = await db.insert(sellers).values({
+          shopName: "Kikuubo Suppliers",
+          ownerName: "Kikuubo Suppliers UG",
+          phone: "0756158466",
+          email: null, idType: "business", idNumber: "KIKUUBO-UG", idPhotoName: "kikuubo",
+          district: "Kampala", landmark: "Kikuubo Lane", tin: null,
+          payoutMethod: "mtn_momo", payoutNumber: "0756158466",
+          verified: true, rating: 48, status: "approved",
+        }).$returningId();
+        [seller] = await db.select().from(sellers).where(eq(sellers.id, row.id));
+      }
+      const existing = await db.select({ slug: products.slug }).from(products).where(eq(products.sellerId, seller.id));
+      const have = new Set(existing.map((p: any) => p.slug));
+      const fresh = catalog.filter((p) => !have.has(p.slug));
+      let inserted = 0;
+      for (const p of fresh) {
+        await db.insert(products).values({
+          sellerId: seller.id,
+          name: p.name,
+          slug: p.slug,
+          category: p.category,
+          price: p.price,
+          oldPrice: null,
+          image: p.image,
+          stock: 50,
+          condition: "new",
+          warrantyMonths: 0,
+          flashSale: false,
+        });
+        inserted++;
+      }
+      return { ok: true, inserted, total: have.size + inserted };
+    }),
 });
