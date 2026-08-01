@@ -7,7 +7,11 @@ import { adminRouter } from "./admin";
 import { bootstrapRouter } from "./bootstrap";
 
 function orderCode() {
-  return "US-" + Math.random().toString(36).slice(2, 7).toUpperCase();
+  // Unambiguous alphabet: no O/0, I/1, L — buyers type these codes by hand
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let c = "";
+  for (let i = 0; i < 5; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return "US-" + c;
 }
 
 const normPhone = (p: string) => p.replace(/[\s-]+/g, "").trim();
