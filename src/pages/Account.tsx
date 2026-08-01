@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { UserRound, MapPin, Phone, Package, Pencil, LogOut, CircleCheckBig, Truck, XCircle, CircleDashed } from 'lucide-react'
+import { UserRound, MapPin, Phone, Package, Pencil, LogOut, CircleCheckBig, Truck, XCircle, CircleDashed, Trash2 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
@@ -30,6 +30,8 @@ export default function AccountPage() {
   const [form, setForm] = useState<Account>(account ?? { name: '', phone: '', location: '' })
   const [editing, setEditing] = useState(!account)
   const register = trpc.customers.register.useMutation()
+  const deleteAccount = trpc.customers.deleteAccount.useMutation()
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const { data } = trpc.customers.me.useQuery(
     { phone: account?.phone ?? '' },
     { enabled: !!account },
@@ -158,11 +160,36 @@ export default function AccountPage() {
               </div>
             )}
 
-            <button
-              onClick={() => { clearAccount(); setAccount(null); setForm({ name: '', phone: '', location: '' }); setEditing(true) }}
-              className="mt-6 inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-500 hover:text-red-600">
-              <LogOut size={13} /> Switch account / sign out on this device
-            </button>
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
+              <button
+                onClick={() => { clearAccount(); setAccount(null); setForm({ name: '', phone: '', location: '' }); setEditing(true) }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-500 hover:text-neutral-800">
+                <LogOut size={13} /> Switch account / sign out on this device
+              </button>
+              {!confirmDelete ? (
+                <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-400 hover:text-red-600">
+                  <Trash2 size={13} /> Delete my account
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-2 text-xs">
+                  <span className="text-red-600 font-semibold">Delete account + all {orders.length} order(s) permanently?</span>
+                  <button
+                    onClick={async () => {
+                      try { await deleteAccount.mutateAsync({ phone: account.phone }) } catch { /* remove locally anyway */ }
+                      clearAccount()
+                      setAccount(null)
+                      setForm({ name: '', phone: '', location: '' })
+                      setEditing(true)
+                      setConfirmDelete(false)
+                    }}
+                    disabled={deleteAccount.isPending}
+                    className="font-bold text-white bg-red-600 px-3 py-1.5 rounded-full disabled:opacity-40">
+                    {deleteAccount.isPending ? 'Deleting…' : 'Yes, delete'}
+                  </button>
+                  <button onClick={() => setConfirmDelete(false)} className="font-semibold text-neutral-500">Cancel</button>
+                </span>
+              )}
+            </div>
           </>
         )}
       </div>

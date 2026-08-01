@@ -318,6 +318,20 @@ export const appRouter = createRouter({
       );
       return { customer: customer ?? null, orders: withItems };
     }),
+    // Buyer deletes their account: customer record + all their orders are removed
+    deleteAccount: publicQuery
+      .input(z.object({ phone: z.string().min(9) }))
+      .mutation(async ({ input }) => {
+        const db = getDb();
+        const phone = normPhone(input.phone);
+        const myOrders = await db.select({ id: orders.id }).from(orders).where(eq(orders.phone, phone));
+        for (const o of myOrders) {
+          await db.delete(orderItems).where(eq(orderItems.orderId, o.id));
+        }
+        await db.delete(orders).where(eq(orders.phone, phone));
+        await db.delete(customers).where(eq(customers.phone, phone));
+        return { ok: true, removedOrders: myOrders.length };
+      }),
   }),
 
   affiliates: createRouter({
