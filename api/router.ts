@@ -210,7 +210,7 @@ export const appRouter = createRouter({
       .mutation(async ({ input }) => {
         const db = getDb();
         const [order] = await db.select().from(orders).where(eq(orders.code, input.code.trim().toUpperCase()));
-        if (!order || order.phone !== normPhone(input.phone)) throw new Error("Order not found for that code and phone number.");
+        if (!order || normPhone(order.phone) !== normPhone(input.phone)) throw new Error("Order not found for that code and phone number.");
         if (order.paymentMethod === "cash") throw new Error("This order is cash on delivery — no mobile payment needed.");
         if (order.paymentStatus === "paid") return { ok: true, already: true };
         await db.update(orders).set({ paymentStatus: "pending_confirmation", paymentRef: input.ref.trim() }).where(eq(orders.id, order.id));
@@ -219,7 +219,7 @@ export const appRouter = createRouter({
     track: publicQuery.input(z.object({ code: z.string(), phone: z.string() })).query(async ({ input }) => {
       const db = getDb();
       const [order] = await db.select().from(orders).where(eq(orders.code, input.code.trim().toUpperCase()));
-      if (!order || order.phone !== normPhone(input.phone)) return null;
+      if (!order || normPhone(order.phone) !== normPhone(input.phone)) return null;
       const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
       return { ...order, items };
     }),

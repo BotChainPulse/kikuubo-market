@@ -98,6 +98,9 @@ export const bootstrapRouter = createRouter({
       for (const stmt of ALTERS) {
         try { await client.query(stmt); } catch (e: any) { if (e?.errno !== 1060) throw e; } // 1060 = duplicate column
       }
+      // Normalize legacy phone numbers (strip spaces/dashes) so account lookups always match
+      await client.query("UPDATE orders SET phone = REPLACE(REPLACE(phone, ' ', ''), '-', '')");
+      await client.query("UPDATE customers SET phone = REPLACE(REPLACE(phone, ' ', ''), '-', '')");
       const [countRows]: any = await db.execute(sql.raw("SELECT COUNT(*) AS n FROM products"));
       const rows = Array.isArray(countRows) ? countRows : [countRows];
       const n = Number(rows[0]?.n ?? 0);
