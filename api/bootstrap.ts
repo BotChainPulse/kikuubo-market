@@ -77,8 +77,10 @@ export const bootstrapRouter = createRouter({
     .mutation(async ({ input }) => {
       if (input.key !== BOOTSTRAP_KEY) throw new Error("Invalid setup key");
       const db = getDb();
+      // DDL must use the text protocol (mysql2 .query), not prepared statements (.execute)
+      const client: any = (db as any).$client;
       for (const stmt of TABLES) {
-        await db.execute(sql.raw(stmt));
+        await client.query(stmt);
       }
       const [countRows]: any = await db.execute(sql.raw("SELECT COUNT(*) AS n FROM products"));
       const rows = Array.isArray(countRows) ? countRows : [countRows];
