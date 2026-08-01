@@ -56,7 +56,7 @@ export default function SearchResults() {
               {pList.map((p) => (
                 <div key={p.id} className={`bg-white rounded-2xl border p-3 flex flex-col ${p.sellerVerified ? 'border-sky-200 ring-1 ring-sky-100' : 'border-neutral-200'}`}>
                   <div className="relative">
-                    <img src={p.image} alt={p.name} className="w-full aspect-square object-cover rounded-xl bg-neutral-100" />
+                    <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="w-full aspect-square object-cover rounded-xl bg-neutral-100" /></Link>
                     {p.discount > 0 && (
                       <span className="absolute top-2 left-2 text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: ORANGE }}>-{p.discount}%</span>
                     )}
@@ -65,7 +65,7 @@ export default function SearchResults() {
                     {p.sellerVerified && <BadgeCheck size={13} className="text-sky-500 shrink-0" />}
                     <span className="truncate">{p.sellerName}</span>
                   </div>
-                  <p className="mt-1 text-sm font-semibold leading-snug line-clamp-2">{p.name}</p>
+                  <Link to={`/product/${p.slug}`}><p className="mt-1 text-sm font-semibold leading-snug line-clamp-2 hover:text-orange-600">{p.name}</p></Link>
                   <div className="mt-auto pt-2 flex items-center justify-between gap-2">
                     <div>
                       <p className="font-extrabold text-sm">{fmt(p.price)}</p>

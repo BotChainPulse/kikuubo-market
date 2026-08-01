@@ -152,7 +152,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {products?.map((p) => (
               <div key={p.id} className={`group bg-white rounded-2xl border overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all ${p.sellerVerified ? 'border-neutral-200 ring-1 ring-sky-100' : 'border-neutral-200'}`}>
-                <div className="relative bg-white">
+                <Link to={`/product/${p.slug}`} className="block relative bg-white">
                   <img src={p.image} alt={p.name} className="w-full aspect-square object-cover" loading="lazy" />
                   {p.discount > 0 && (
                     <span className="absolute top-3 left-3 text-xs font-bold text-white px-2 py-1 rounded-full" style={{ background: ORANGE }}>−{p.discount}%</span>
@@ -162,7 +162,7 @@ export default function HomePage() {
                       <BadgeCheck size={16} className="text-sky-600" />
                     </span>
                   )}
-                </div>
+                </Link>
                 <div className="p-4">
                   {p.sellerVerified ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full mb-1.5">
@@ -171,7 +171,7 @@ export default function HomePage() {
                   ) : (
                     <span className="block text-[11px] text-neutral-400 mb-1.5">{p.sellerName}</span>
                   )}
-                  <h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em]">{p.name}</h3>
+                  <Link to={`/product/${p.slug}`}><h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em] hover:text-orange-600">{p.name}</h3></Link>
                   <div className="mt-2 flex items-baseline gap-2">
                     <span className="font-extrabold" style={{ color: ORANGE }}>{fmt(p.price)}</span>
                     {p.oldPrice && <span className="text-xs text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}

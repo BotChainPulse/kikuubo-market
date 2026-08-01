@@ -58,7 +58,15 @@ export const appRouter = createRouter({
         .innerJoin(sellers, eq(products.sellerId, sellers.id))
         .where(eq(products.slug, input.slug));
       if (!row) return null;
-      return { ...row.product, sellerName: row.seller.shopName, sellerVerified: row.seller.verified };
+      return {
+        ...row.product,
+        sellerName: row.seller.shopName,
+        sellerVerified: row.seller.verified,
+        sellerRating: row.seller.rating / 10,
+        sellerPhone: row.seller.phone,
+        sellerDistrict: row.seller.district,
+        discount: row.product.oldPrice ? Math.round((1 - row.product.price / row.product.oldPrice) * 100) : 0,
+      };
     }),
     browse: publicQuery
       .input(z.object({

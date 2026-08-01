@@ -20,6 +20,7 @@ import Boda from './pages/Boda'
 import Pay from './pages/Pay'
 import MyOrders from './pages/MyOrders'
 import Account from './pages/Account'
+import ProductDetail from './pages/ProductDetail'
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/sell/listings" element={<SellerListings />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/catalog" element={<Catalog />} />
+        <Route path="/product/:slug" element={<ProductDetail />} />
         <Route path="/mall" element={<Catalog />} />
         <Route path="/boda" element={<Boda />} />
         <Route path="/pay" element={<Pay />} />

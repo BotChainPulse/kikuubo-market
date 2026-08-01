@@ -105,7 +105,11 @@ export default function Catalog() {
               return (
                 <div key={key} className="group bg-white rounded-2xl border border-neutral-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
                   <div className="relative bg-white">
-                    <img src={p.image} alt={p.name} className="w-full aspect-square object-cover" loading="lazy" />
+                    {p.kind === 'product' ? (
+                      <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="w-full aspect-square object-cover" loading="lazy" /></Link>
+                    ) : (
+                      <img src={p.image} alt={p.name} className="w-full aspect-square object-cover" loading="lazy" />
+                    )}
                     {p.discount > 0 && (
                       <span className="absolute top-3 left-3 text-xs font-bold text-white px-2 py-1 rounded-full" style={{ background: ORANGE }}>−{p.discount}%</span>
                     )}
@@ -128,7 +132,11 @@ export default function Catalog() {
                     ) : (
                       <span className="block text-[11px] text-neutral-400 mb-1.5">{p.sellerName}</span>
                     )}
-                    <h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em]">{p.name}</h3>
+                    {p.kind === 'product' ? (
+                      <Link to={`/product/${p.slug}`}><h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em] hover:text-orange-600">{p.name}</h3></Link>
+                    ) : (
+                      <h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em]">{p.name}</h3>
+                    )}
                     <div className="mt-2 flex items-baseline gap-2">
                       <span className="font-extrabold" style={{ color: ORANGE }}>{fmt(p.price)}</span>
                       {p.oldPrice && <span className="text-xs text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}
