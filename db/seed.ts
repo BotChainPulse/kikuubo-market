@@ -1,7 +1,7 @@
 import { getDb } from "../api/queries/connection";
 import { sellers, products, restaurants, menuItems } from "./schema";
 
-async function seed() {
+export async function runSeed() {
   const db = getDb();
   console.log("Seeding database...");
 
@@ -73,7 +73,9 @@ async function seed() {
   ]);
 
   console.log("Done.");
-  process.exit(0);
 }
 
-seed().catch((e) => { console.error(e); process.exit(1); });
+// CLI usage: RUN_SEED=1 node seed.js
+if (process.env.RUN_SEED === "1") {
+  runSeed().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+}

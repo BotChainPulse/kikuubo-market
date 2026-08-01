@@ -4,6 +4,7 @@ import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings } from "../db/schema";
 import { adminRouter } from "./admin";
+import { bootstrapRouter } from "./bootstrap";
 
 function orderCode() {
   return "US-" + Math.random().toString(36).slice(2, 7).toUpperCase();
@@ -30,6 +31,7 @@ export const appRouter = createRouter({
     }
   }),
   admin: adminRouter,
+  bootstrap: bootstrapRouter,
 
   products: createRouter({
     flashSale: publicQuery.query(async () => {
