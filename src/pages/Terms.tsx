@@ -19,20 +19,20 @@ export default function Terms() {
         <p className="mt-1 text-sm text-neutral-500">Last updated: August 2026 · Governed by the laws of Uganda</p>
 
         <Section title="1. Who we are">
-          <p>Kikuubo Market ("Kikuubo", "we", "us") is an online marketplace operated from Kampala, Uganda. We connect buyers with independent sellers and restaurants. By using Kikuubo you agree to these Terms. If you do not agree, please do not use the platform.</p>
+          <p>UG Souq ("UG Souq", "we", "us") is an online marketplace operated from Kampala, Uganda. We connect buyers with independent sellers and restaurants. By using UG Souq you agree to these Terms. If you do not agree, please do not use the platform.</p>
         </Section>
 
         <Section title="2. The marketplace role">
-          <p>Kikuubo is a marketplace, not the direct seller of most listed items. Products are sold by independent sellers and meals are prepared by independent restaurants. We facilitate the listing, ordering, payment coordination, and delivery of goods, and we verify sellers, but the contract of sale for each item is between you and the seller or restaurant.</p>
+          <p>UG Souq is a marketplace, not the direct seller of most listed items. Products are sold by independent sellers and meals are prepared by independent restaurants. We facilitate the listing, ordering, payment coordination, and delivery of goods, and we verify sellers, but the contract of sale for each item is between you and the seller or restaurant.</p>
         </Section>
 
         <Section title="3. Orders and pricing">
-          <p>All prices are shown in Uganda Shillings (UGX) and include listed delivery fees where applicable. When you place an order you will receive an order code (e.g. KB-XXXXX) — keep it safe, as it is required to track your order together with your phone number.</p>
+          <p>All prices are shown in Uganda Shillings (UGX) and include listed delivery fees where applicable. When you place an order you will receive an order code (e.g. US-XXXXX) — keep it safe, as it is required to track your order together with your phone number.</p>
           <p>We or the seller may cancel an order if an item is out of stock, was mispriced in error, or if we suspect fraud. In that case any payment collected will be reversed in full.</p>
         </Section>
 
         <Section title="4. Payments">
-          <p>We accept MTN Mobile Money, Airtel Money, and cash on delivery for eligible orders. Never share your mobile money PIN with anyone — Kikuubo staff, riders, and sellers will never ask for it. Payment confirmations are matched to your order code.</p>
+          <p>We accept MTN Mobile Money, Airtel Money, and cash on delivery for eligible orders. Never share your mobile money PIN with anyone — UG Souq staff, riders, and sellers will never ask for it. Payment confirmations are matched to your order code.</p>
         </Section>
 
         <Section title="5. Delivery">
@@ -57,7 +57,7 @@ export default function Terms() {
         </Section>
 
         <Section title="10. Liability">
-          <p>To the extent permitted by law, Kikuubo's liability for any claim arising from an order is limited to the value of that order. We are not liable for indirect losses. Nothing in these Terms limits your rights under Ugandan consumer protection law.</p>
+          <p>To the extent permitted by law, UG Souq's liability for any claim arising from an order is limited to the value of that order. We are not liable for indirect losses. Nothing in these Terms limits your rights under Ugandan consumer protection law.</p>
         </Section>
 
         <Section title="11. Your data">

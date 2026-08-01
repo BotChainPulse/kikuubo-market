@@ -6,7 +6,7 @@ import { sellers, products, restaurants, menuItems, orders, orderItems, affiliat
 import { adminRouter } from "./admin";
 
 function orderCode() {
-  return "KB-" + Math.random().toString(36).slice(2, 7).toUpperCase();
+  return "US-" + Math.random().toString(36).slice(2, 7).toUpperCase();
 }
 
 export const appRouter = createRouter({

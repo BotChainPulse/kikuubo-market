@@ -15,12 +15,12 @@ import { ORANGE } from '../lib/site'
 
 const services = [
   { icon: Store, label: 'Super Mall', to: '/' },
-  { icon: UtensilsCrossed, label: 'Kikuubo Food', to: '/food' },
-  { icon: Timer, label: 'Kikuubo Fresh', tag: '45 min', to: '/food' },
+  { icon: UtensilsCrossed, label: 'UG Souq Food', to: '/food' },
+  { icon: Timer, label: 'UG Souq Fresh', tag: '45 min', to: '/food' },
   { icon: Send, label: 'Boda Send', to: '/' },
   { icon: Leaf, label: 'Farm Direct', to: '/' },
   { icon: Recycle, label: 'Refurbished', to: '/' },
-  { icon: Wallet, label: 'Kikuubo Pay', to: '/' },
+  { icon: Wallet, label: 'UG Souq Pay', to: '/' },
   { icon: BadgePercent, label: 'Deals', to: '/' },
 ]
 
@@ -101,7 +101,7 @@ export default function HomePage() {
             </p>
             <div className="mt-6 flex items-center rounded-full border border-neutral-300 bg-white overflow-hidden max-w-md shadow-sm focus-within:border-neutral-500">
               <Search size={16} className="ml-4 text-neutral-400" />
-              <input className="flex-1 px-3 py-3 text-sm outline-none" placeholder="Search Kikuubo..." />
+              <input className="flex-1 px-3 py-3 text-sm outline-none" placeholder="Search UG Souq..." />
               <button className="m-1 px-5 py-2 rounded-full text-white text-sm font-semibold" style={{ background: ORANGE }}>Search</button>
             </div>
             <div className="mt-5 flex flex-wrap gap-2 text-xs font-medium">
@@ -111,7 +111,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="relative">
-            <img src="/images/hero.png" alt="Shopping on Kikuubo" className="w-full rounded-2xl shadow-xl object-cover aspect-[3/2]" />
+            <img src="/images/hero.png" alt="Shopping on UG Souq" className="w-full rounded-2xl shadow-xl object-cover aspect-[3/2]" />
             <div className="absolute -bottom-4 left-4 bg-white rounded-xl shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm font-semibold">
               <Truck size={16} style={{ color: ORANGE }} /> Free delivery in Kampala
             </div>
@@ -238,7 +238,7 @@ export default function HomePage() {
           <Link to="/sell" className="group bg-neutral-900 text-white rounded-2xl p-6 flex items-center gap-5 hover:bg-neutral-800 transition-colors">
             <span className="w-12 h-12 shrink-0 rounded-full grid place-items-center" style={{ background: ORANGE }}><Store size={22} /></span>
             <div className="flex-1">
-              <h3 className="font-extrabold">Sell on Kikuubo</h3>
+              <h3 className="font-extrabold">Sell on UG Souq</h3>
               <p className="text-sm text-neutral-300 mt-1">Open your shop in minutes. Free verification with your National ID — verified sellers rank first.</p>
             </div>
             <span className="text-neutral-500 group-hover:text-white transition-colors">→</span>

@@ -23,7 +23,7 @@ export default function SearchResults() {
       <Header />
       <main className="mx-auto max-w-7xl px-4 py-8">
         <h1 className="text-xl font-extrabold">
-          {q ? <>Results for “<span style={{ color: ORANGE }}>{q}</span>”</> : 'Search Kikuubo'}
+          {q ? <>Results for “<span style={{ color: ORANGE }}>{q}</span>”</> : 'Search UG Souq'}
         </h1>
         {q && !loading && (
           <p className="mt-1 text-sm text-neutral-500">

@@ -90,7 +90,7 @@ export const menuItems = mysqlTable("menu_items", {
 
 export const orders = mysqlTable("orders", {
   id: serial("id").primaryKey(),
-  code: varchar("code", { length: 16 }).notNull(), // e.g. KB-8F3K2
+  code: varchar("code", { length: 16 }).notNull(), // e.g. US-8F3K2
   customerName: varchar("customer_name", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 32 }).notNull(),
   address: text("address").notNull(),

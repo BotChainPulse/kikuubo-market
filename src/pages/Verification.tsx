@@ -17,8 +17,8 @@ export default function Verification() {
       <header className="bg-white border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>K</span>
-            <span className="font-extrabold text-lg">Kikuubo</span>
+            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>UG</span>
+            <span className="font-extrabold text-lg">UG Souq</span>
           </Link>
           <a href={WA_LINK} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 px-4 py-2 rounded-full hover:bg-green-100">
             <MessageCircle size={16} /> Help
@@ -32,7 +32,7 @@ export default function Verification() {
         </span>
         <h1 className="mt-5 text-3xl md:text-4xl font-extrabold tracking-tight">What the blue badge means</h1>
         <p className="mt-4 text-neutral-600">
-          When you see the <b className="text-sky-700">Verified</b> badge on Kikuubo, the seller behind that product has passed our checks below — and their listings are shown first in search, flash sales and category pages.
+          When you see the <b className="text-sky-700">Verified</b> badge on UG Souq, the seller behind that product has passed our checks below — and their listings are shown first in search, flash sales and category pages.
         </p>
 
         <div className="mt-10 space-y-4">

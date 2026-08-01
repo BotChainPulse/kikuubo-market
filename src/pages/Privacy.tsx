@@ -32,7 +32,7 @@ const sections = [
   {
     icon: Lock, t: 'Security measures',
     items: [
-      ['Encryption in transit', 'All data between your device and Kikuubo is encrypted (HTTPS/TLS).'],
+      ['Encryption in transit', 'All data between your device and UG Souq is encrypted (HTTPS/TLS).'],
       ['Least-privilege storage', 'Sensitive fields (ID numbers, payout numbers) are stored separately from public shop data.'],
       ['Payment safety', 'Mobile-money payments are processed through the official MTN MoMo / Airtel Money channels — we never see or store your PIN.'],
     ],
@@ -47,7 +47,7 @@ export default function Privacy() {
         <span className="inline-flex items-center gap-2 text-sm font-bold text-green-700 bg-green-50 border border-green-200 px-4 py-2 rounded-full">
           <ShieldCheck size={16} /> Privacy & data protection
         </span>
-        <h1 className="mt-5 text-3xl font-extrabold tracking-tight">How Kikuubo protects your data</h1>
+        <h1 className="mt-5 text-3xl font-extrabold tracking-tight">How UG Souq protects your data</h1>
         <p className="mt-3 text-neutral-600">
           We operate in line with Uganda's <b>Data Protection and Privacy Act, 2019</b>. This page explains — in plain language — what we collect, why, and the control you have over it.
         </p>
@@ -78,7 +78,7 @@ export default function Privacy() {
           </a>
         </div>
 
-        <p className="mt-6 text-xs text-neutral-400">Last updated: August 2026 · Kikuubo Market Ltd, Kampala, Uganda</p>
+        <p className="mt-6 text-xs text-neutral-400">Last updated: August 2026 · UG Souq Ltd, Kampala, Uganda</p>
       </div>
       <Footer />
     </div>

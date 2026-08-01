@@ -1,4 +1,4 @@
-const CACHE = 'kikuubo-v1'
+const CACHE = 'ugsouq-v1'
 const SHELL = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (e) => {

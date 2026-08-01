@@ -14,7 +14,7 @@ export default function Food() {
       <Header />
       <section className="bg-neutral-900 text-white">
         <div className="mx-auto max-w-7xl px-4 py-10">
-          <h1 className="text-3xl font-extrabold flex items-center gap-3"><UtensilsCrossed size={28} style={{ color: ORANGE }} /> Kikuubo Food</h1>
+          <h1 className="text-3xl font-extrabold flex items-center gap-3"><UtensilsCrossed size={28} style={{ color: ORANGE }} /> UG Souq Food</h1>
           <p className="mt-2 text-neutral-300">Order from Kampala's favourite kitchens — hot delivery by boda in under 45 minutes.</p>
         </div>
       </section>

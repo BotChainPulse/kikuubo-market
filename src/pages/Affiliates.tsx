@@ -22,7 +22,7 @@ const steps = [
 
 const faqs = [
   ['How much can I earn?', 'Commission ranges from 2% to 8% depending on the product category. Electronics earn less per sale but sell in high volume; fashion and beauty earn more.'],
-  ['Do I need a website?', 'No. Most Kikuubo affiliates promote through WhatsApp status, TikTok, Instagram and community groups. Your link works anywhere.'],
+  ['Do I need a website?', 'No. Most UG Souq affiliates promote through WhatsApp status, TikTok, Instagram and community groups. Your link works anywhere.'],
   ['When do I get paid?', 'Monthly, straight to your mobile money. Orders that are returned or refunded don’t earn commission.'],
   ['Can I choose which sellers to promote?', 'Yes — you can build links for any product, and we recommend promoting verified sellers since their listings convert better.'],
 ]
@@ -38,8 +38,8 @@ export default function Affiliates() {
       <header className="bg-white border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>K</span>
-            <span className="font-extrabold text-lg">Kikuubo <span className="font-semibold text-neutral-500">Affiliates</span></span>
+            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>UG</span>
+            <span className="font-extrabold text-lg">UG Souq <span className="font-semibold text-neutral-500">Affiliates</span></span>
           </Link>
           <a href={WA_LINK} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 px-4 py-2 rounded-full hover:bg-green-100">
             <MessageCircle size={16} /> Ask us
@@ -51,7 +51,7 @@ export default function Affiliates() {
       <section className="bg-neutral-900 text-white">
         <div className="mx-auto max-w-6xl px-4 py-16 text-center">
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">Earn money sharing<br />products you love</h1>
-          <p className="mt-4 text-neutral-300 max-w-xl mx-auto">Join the Kikuubo Affiliate Program — free to join, up to 8% commission on every sale you generate. Share links, get paid by MoMo.</p>
+          <p className="mt-4 text-neutral-300 max-w-xl mx-auto">Join the UG Souq Affiliate Program — free to join, up to 8% commission on every sale you generate. Share links, get paid by MoMo.</p>
           <a href="#join" className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-neutral-900 bg-white px-7 py-3.5 rounded-full hover:bg-neutral-100 transition-colors">
             Join now — it's free <ChevronRight size={16} />
           </a>
@@ -115,7 +115,7 @@ export default function Affiliates() {
             </div>
           ) : (
             <>
-              <h2 className="font-extrabold text-xl">Become a Kikuubo affiliate</h2>
+              <h2 className="font-extrabold text-xl">Become a UG Souq affiliate</h2>
               <p className="text-sm text-neutral-600 mt-1">Free to join. We onboard everyone via WhatsApp.</p>
               <div className="mt-5 space-y-4">
                 <div>

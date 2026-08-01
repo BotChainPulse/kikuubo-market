@@ -16,9 +16,9 @@ const sellerOpts = [
 
 function answer(q: string): Msg {
   const t = q.toLowerCase()
-  if (t.includes('track')) return { from: 'bot', text: 'You can track any order with your order code (e.g. KB-XXXXX) and the phone number you ordered with.', links: [{ label: 'Track my order', to: '/track' }] }
+  if (t.includes('track')) return { from: 'bot', text: 'You can track any order with your order code (e.g. US-XXXXX) and the phone number you ordered with.', links: [{ label: 'Track my order', to: '/track' }] }
   if (t.includes('flash')) return { from: 'bot', text: 'The Flash Sale has verified sellers first, with discounts up to 35%. Deals refresh daily!', links: [{ label: 'Shop Flash Sale', to: '/' }] }
-  if (t.includes('food') || t.includes('kfc') || t.includes('chicken')) return { from: 'bot', text: 'Kikuubo Food delivers from KFC Kampala, Chicken Tonight, Chips & Chicken Express, Cafe Javas, local kitchens and more — in under 45 minutes.', links: [{ label: 'Order food', to: '/food' }] }
+  if (t.includes('food') || t.includes('kfc') || t.includes('chicken')) return { from: 'bot', text: 'UG Souq Food delivers from KFC Kampala, Chicken Tonight, Chips & Chicken Express, Cafe Javas, local kitchens and more — in under 45 minutes.', links: [{ label: 'Order food', to: '/food' }] }
   if (t.includes('payment')) return { from: 'bot', text: 'We accept MTN MoMo, Airtel Money, and cash on delivery. No card needed. Your MoMo PIN is never seen or stored by us.' }
   if (t.includes('return') || t.includes('refund')) return { from: 'bot', text: 'Every order has Buyer Protection: 7-day returns on products, and food issues reported within 2 hours get a refund or credit.', links: [{ label: 'Returns & refunds', to: '/returns' }] }
   if (t.includes('open a shop') || t.includes('sell')) return { from: 'bot', text: 'Opening a shop is free. You\'ll need your National ID, business location, and a MoMo/Airtel number for payouts. TIN is only needed for companies.', links: [{ label: 'Open a shop', to: '/sell' }] }
@@ -45,7 +45,7 @@ export default function ChatBot() {
     setMsgs([{
       from: 'bot',
       text: r === 'buyer'
-        ? 'Muli otya! 👋 I\'m Kik, your Kikuubo shopping assistant. What would you like to do?'
+        ? 'Muli otya! 👋 I\'m Kik, your UG Souq shopping assistant. What would you like to do?'
         : 'Welcome, seller! 💼 I can guide you through opening a shop, verification, payouts and more.',
     }])
   }
@@ -76,7 +76,7 @@ export default function ChatBot() {
         <div className="fixed bottom-5 right-5 z-50 w-[min(92vw,360px)] h-[min(70vh,520px)] bg-white rounded-2xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 text-white" style={{ background: ORANGE }}>
             <div>
-              <p className="font-extrabold text-sm">Kik — Kikuubo Assistant</p>
+              <p className="font-extrabold text-sm">Kik — UG Souq Assistant</p>
               <p className="text-[11px] opacity-90">Typically replies instantly</p>
             </div>
             <button onClick={() => setOpen(false)} aria-label="Close chat" className="p-1 hover:bg-white/20 rounded-full"><X size={18} /></button>
@@ -86,7 +86,7 @@ export default function ChatBot() {
             {!role ? (
               <div className="space-y-3 pt-2">
                 <div className="bg-white rounded-2xl rounded-tl-sm border border-neutral-200 p-3 text-sm shadow-sm">
-                  Muli otya! 👋 I'm <b>Kik</b>, the Kikuubo assistant. How can I help you today — are you here to…
+                  Muli otya! 👋 I'm <b>Kik</b>, the UG Souq assistant. How can I help you today — are you here to…
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => greet('buyer')} className="rounded-xl border-2 border-orange-500 bg-orange-50 py-3 text-sm font-bold hover:bg-orange-100">🛍️ Shop / Buy</button>

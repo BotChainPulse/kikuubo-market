@@ -5,7 +5,7 @@ import { trpc } from '../providers/trpc'
 import { fmt } from '../lib/cart'
 import { ORANGE } from '../lib/site'
 
-const KEY_STORAGE = 'kikuubo_admin_key'
+const KEY_STORAGE = 'ugsouq_admin_key'
 const ORDER_STATUSES = ['placed', 'confirmed', 'on_the_way', 'delivered', 'cancelled'] as const
 const STATUS_LABEL: Record<string, string> = {
   placed: 'Placed', confirmed: 'Confirmed', on_the_way: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled',
@@ -33,7 +33,7 @@ export default function Admin() {
           <div className="w-12 h-12 rounded-xl grid place-items-center text-white mx-auto" style={{ background: ORANGE }}>
             <ShieldCheck size={24} />
           </div>
-          <h1 className="mt-4 text-xl font-extrabold text-center">Kikuubo Admin</h1>
+          <h1 className="mt-4 text-xl font-extrabold text-center">UG Souq Admin</h1>
           <p className="mt-1 text-sm text-neutral-500 text-center">Enter your admin key to continue.</p>
           <input
             type="password"
@@ -63,8 +63,8 @@ export default function Admin() {
       <header className="bg-neutral-900 text-white">
         <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 font-extrabold">
-            <span className="w-8 h-8 rounded-lg grid place-items-center text-sm" style={{ background: ORANGE }}>K</span>
-            Kikuubo Admin
+            <span className="w-8 h-8 rounded-lg grid place-items-center text-sm" style={{ background: ORANGE }}>UG</span>
+            UG Souq Admin
           </div>
           <div className="flex items-center gap-4 text-sm">
             <Link to="/" className="text-neutral-400 hover:text-white">View store</Link>

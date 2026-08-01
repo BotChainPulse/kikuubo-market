@@ -29,7 +29,7 @@ export default function TrackOrder() {
         <p className="text-sm text-neutral-600 mt-1">Enter the order code from checkout plus the phone number you ordered with.</p>
 
         <div className="mt-5 bg-white rounded-2xl border border-neutral-200 p-6 space-y-4">
-          <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Order code (e.g. KB-8F3K2)" className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500 font-mono tracking-widest" />
+          <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Order code (e.g. US-8F3K2)" className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500 font-mono tracking-widest" />
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number (07XX XXX XXX)" className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500" />
           <button
             disabled={code.length < 4 || phone.length < 9}

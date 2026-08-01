@@ -6,7 +6,7 @@ import { getDb } from "./queries/connection";
 import { sellers, orders, orderItems, affiliates, products, listings } from "../db/schema";
 
 // Change this key (or set ADMIN_KEY in the environment) before going public.
-const ADMIN_KEY = process.env.ADMIN_KEY ?? "kikuubo-admin-2026";
+const ADMIN_KEY = process.env.ADMIN_KEY ?? "ugsouq-admin-2026";
 
 function requireAdmin(key: string) {
   if (key !== ADMIN_KEY) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid admin key" });

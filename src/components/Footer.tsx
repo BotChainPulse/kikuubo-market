@@ -8,8 +8,8 @@ export default function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-12 grid sm:grid-cols-4 gap-8 text-sm">
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>K</span>
-            <span className="font-extrabold text-white text-lg">Kikuubo</span>
+            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>UG</span>
+            <span className="font-extrabold text-white text-lg">UG Souq</span>
           </div>
           <p className="mt-3 text-neutral-400">Uganda's market, in your pocket. Proudly built in Kampala.</p>
           <a href={WA_LINK} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-green-400 hover:text-green-300 font-semibold"><MessageCircle size={14} /> Chat with us on WhatsApp</a>
@@ -18,7 +18,7 @@ export default function Footer() {
           <h4 className="text-white font-bold mb-3">Shop</h4>
           <ul className="space-y-2 text-neutral-400">
             <li><Link to="/" className="hover:text-white">Flash Sale</Link></li>
-            <li><Link to="/food" className="hover:text-white">Kikuubo Food</Link></li>
+            <li><Link to="/food" className="hover:text-white">UG Souq Food</Link></li>
             <li><Link to="/search?q=farm" className="hover:text-white">Farm Direct</Link></li>
             <li><Link to="/search?q=refurbished" className="hover:text-white">Refurbished</Link></li>
           </ul>
@@ -45,7 +45,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="border-t border-neutral-800 py-4 text-center text-xs text-neutral-500">
-        © 2026 Kikuubo Market Ltd · Kampala, Uganda · MTN MoMo & Airtel Money accepted
+        © 2026 UG Souq Ltd · Kampala, Uganda · MTN MoMo & Airtel Money accepted
       </div>
     </footer>
   )

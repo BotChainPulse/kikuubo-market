@@ -22,9 +22,9 @@ const Ctx = createContext<CartCtx | null>(null)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem('kikuubo_cart') ?? '[]') } catch { return [] }
+    try { return JSON.parse(localStorage.getItem('ugsouq_cart') ?? '[]') } catch { return [] }
   })
-  useEffect(() => { localStorage.setItem('kikuubo_cart', JSON.stringify(items)) }, [items])
+  useEffect(() => { localStorage.setItem('ugsouq_cart', JSON.stringify(items)) }, [items])
 
   const add: CartCtx['add'] = (item, qty = 1) =>
     setItems((prev) => {

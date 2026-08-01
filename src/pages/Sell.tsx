@@ -45,8 +45,8 @@ export default function Sell() {
       <header className="bg-white border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>K</span>
-            <span className="font-extrabold text-lg">Kikuubo <span className="font-semibold text-neutral-500">Seller Center</span></span>
+            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>UG</span>
+            <span className="font-extrabold text-lg">UG Souq <span className="font-semibold text-neutral-500">Seller Center</span></span>
           </Link>
           <a href={WA_LINK} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 px-4 py-2 rounded-full hover:bg-green-100">
             <MessageCircle size={16} /> Seller support
@@ -57,7 +57,7 @@ export default function Sell() {
       {/* Hero / why sell */}
       <section className="bg-neutral-900 text-white">
         <div className="mx-auto max-w-6xl px-4 py-14">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Start selling on Kikuubo today</h1>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Start selling on UG Souq today</h1>
           <p className="mt-3 text-neutral-300 max-w-xl">Reach buyers across Uganda, get paid by MoMo, and earn the blue Verified badge that puts your products at the top of search.</p>
           <div className="mt-8 grid sm:grid-cols-3 gap-4">
             {[
@@ -202,7 +202,7 @@ export default function Sell() {
                 </div>
                 <label className="flex items-start gap-2.5 text-sm text-neutral-600">
                   <input type="checkbox" className="mt-1 accent-orange-600" />
-                  I confirm the details are correct and agree to the Seller Terms, including Kikuubo's verification and buyer-protection policies.
+                  I confirm the details are correct and agree to the Seller Terms, including UG Souq's verification and buyer-protection policies.
                 </label>
               </div>
             )}

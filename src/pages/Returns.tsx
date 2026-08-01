@@ -9,7 +9,7 @@ export default function Returns() {
       <Header />
       <div className="mx-auto max-w-3xl px-4 py-12">
         <h1 className="text-3xl font-extrabold flex items-center gap-3"><RotateCcw size={26} style={{ color: ORANGE }} /> Returns & refunds</h1>
-        <p className="mt-3 text-neutral-600">Every order on Kikuubo is covered by Buyer Protection. If something isn't right, we make it right.</p>
+        <p className="mt-3 text-neutral-600">Every order on UG Souq is covered by Buyer Protection. If something isn't right, we make it right.</p>
 
         <div className="mt-8 space-y-4">
           {[
