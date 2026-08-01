@@ -20,7 +20,13 @@ export const appRouter = createRouter({
       const rows: any = await db.execute(sql`SELECT DATABASE() AS db, (SELECT COUNT(*) FROM products) AS products`);
       return { ok: true, url: masked, rows: JSON.parse(JSON.stringify(rows)) };
     } catch (e: any) {
-      return { ok: false, url: masked, error: e?.message ?? String(e) };
+      const chain: string[] = [];
+      let cur: any = e;
+      while (cur) {
+        chain.push([cur.code, cur.errno, cur.sqlState, cur.sqlMessage, cur.message].filter(Boolean).join(" | "));
+        cur = cur.cause;
+      }
+      return { ok: false, url: masked, error: chain.join("  ==>  ") };
     }
   }),
   admin: adminRouter,
