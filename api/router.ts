@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, desc, asc, like, or } from "drizzle-orm";
+import { eq, desc, asc, like, or, sql } from "drizzle-orm";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings } from "../db/schema";
@@ -11,6 +11,18 @@ function orderCode() {
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
+  // Temporary diagnostics: reports the real DB error (credentials masked)
+  diag: publicQuery.query(async () => {
+    const raw = process.env.DATABASE_URL ?? "";
+    const masked = raw.replace(/(:\/\/[^:]+:)[^@]+(@)/, "$1***$2");
+    try {
+      const db = getDb();
+      const rows: any = await db.execute(sql`SELECT DATABASE() AS db, (SELECT COUNT(*) FROM products) AS products`);
+      return { ok: true, url: masked, rows: JSON.parse(JSON.stringify(rows)) };
+    } catch (e: any) {
+      return { ok: false, url: masked, error: e?.message ?? String(e) };
+    }
+  }),
   admin: adminRouter,
 
   products: createRouter({
