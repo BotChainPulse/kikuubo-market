@@ -19,24 +19,24 @@ async function seed() {
   const [pp, kph, hisense, soundwave, nalongo, kicks, homeease, mityana] = sellerRows.map((r) => r.id);
 
   await db.insert(products).values([
-    { sellerId: pp, name: "Tecno Spark 20 Pro, 8GB RAM + 256GB, 108MP Camera", slug: "tecno-spark-20", category: "phones", price: 429000, oldPrice: 649000, image: "/images/phone-tecno.png", stock: 7, flashSale: true },
-    { sellerId: kph, name: "Samsung Galaxy A15, 6GB + 128GB Dual SIM", slug: "samsung-a15", category: "phones", price: 565000, oldPrice: 720000, image: "/images/phone-samsung.png", stock: 12, flashSale: true },
-    { sellerId: hisense, name: "Hisense 43\" Smart Full HD TV with Free-to-Air Decoder", slug: "hisense-43-tv", category: "electronics", price: 850000, oldPrice: 1150000, image: "/images/tv.png", stock: 5, flashSale: true },
-    { sellerId: soundwave, name: "BassPro Wireless Over-Ear Headphones, 40h Battery", slug: "wireless-headphones", category: "electronics", price: 145000, oldPrice: 220000, image: "/images/headphones.png", stock: 18, flashSale: true },
-    { sellerId: nalongo, name: "Elegant Ankara Print Dress, Bold Orange & Teal (S–XL)", slug: "ankara-dress", category: "womens-fashion", price: 95000, oldPrice: 140000, image: "/images/dress.png", stock: 9, flashSale: true },
-    { sellerId: kicks, name: "StrideFlex Running Sneakers, White/Orange (Unisex)", slug: "running-sneakers", category: "sports", price: 120000, oldPrice: 185000, image: "/images/sneakers.png", stock: 14, flashSale: true },
-    { sellerId: homeease, name: "VitaMix-style 2L Kitchen Blender, Stainless Steel, 500W", slug: "kitchen-blender", category: "home", price: 165000, oldPrice: 240000, image: "/images/blender.png", stock: 11, flashSale: true },
-    { sellerId: mityana, name: "Fresh Green Matooke Bunch — Direct from Mityana Farms", slug: "green-matooke", category: "agriculture", price: 18000, oldPrice: null, image: "/images/matooke.png", stock: 30, flashSale: true },
-    { sellerId: kph, name: "Refurbished iPhone 11, 64GB — Grade A, 6-Month Warranty", slug: "refurb-iphone-11", category: "refurbished", price: 780000, oldPrice: 950000, image: "/images/phone-tecno.png", stock: 4, flashSale: false },
+    { sellerId: pp, name: "Tecno Spark 20 Pro, 8GB RAM + 256GB, 108MP Camera", slug: "tecno-spark-20", category: "phones", price: 429000, oldPrice: 649000, image: "/images/phone-tecno.jpg", stock: 7, flashSale: true },
+    { sellerId: kph, name: "Samsung Galaxy A15, 6GB + 128GB Dual SIM", slug: "samsung-a15", category: "phones", price: 565000, oldPrice: 720000, image: "/images/phone-samsung.jpg", stock: 12, flashSale: true },
+    { sellerId: hisense, name: "Hisense 43\" Smart Full HD TV with Free-to-Air Decoder", slug: "hisense-43-tv", category: "electronics", price: 850000, oldPrice: 1150000, image: "/images/tv.jpg", stock: 5, flashSale: true },
+    { sellerId: soundwave, name: "BassPro Wireless Over-Ear Headphones, 40h Battery", slug: "wireless-headphones", category: "electronics", price: 145000, oldPrice: 220000, image: "/images/headphones.jpg", stock: 18, flashSale: true },
+    { sellerId: nalongo, name: "Elegant Ankara Print Dress, Bold Orange & Teal (S–XL)", slug: "ankara-dress", category: "womens-fashion", price: 95000, oldPrice: 140000, image: "/images/dress.jpg", stock: 9, flashSale: true },
+    { sellerId: kicks, name: "StrideFlex Running Sneakers, White/Orange (Unisex)", slug: "running-sneakers", category: "sports", price: 120000, oldPrice: 185000, image: "/images/sneakers.jpg", stock: 14, flashSale: true },
+    { sellerId: homeease, name: "VitaMix-style 2L Kitchen Blender, Stainless Steel, 500W", slug: "kitchen-blender", category: "home", price: 165000, oldPrice: 240000, image: "/images/blender.jpg", stock: 11, flashSale: true },
+    { sellerId: mityana, name: "Fresh Green Matooke Bunch — Direct from Mityana Farms", slug: "green-matooke", category: "agriculture", price: 18000, oldPrice: null, image: "/images/matooke.jpg", stock: 30, flashSale: true },
+    { sellerId: kph, name: "Refurbished iPhone 11, 64GB — Grade A, 6-Month Warranty", slug: "refurb-iphone-11", category: "refurbished", price: 780000, oldPrice: 950000, image: "/images/phone-tecno.jpg", stock: 4, flashSale: false },
   ]);
 
   const restoRows = await db.insert(restaurants).values([
-    { name: "KFC Kampala", slug: "kfc-kampala", cuisine: "Fried Chicken · Burgers", area: "Kampala Road", deliveryMins: 30, deliveryFee: 4000, minOrder: 15000, rating: 46, image: "/images/food/kfc.png", featured: true },
-    { name: "Chicken Tonight", slug: "chicken-tonight", cuisine: "Grilled & Fried Chicken", area: "Kisementi", deliveryMins: 35, deliveryFee: 3000, minOrder: 12000, rating: 45, image: "/images/food/chicken-tonight.png", featured: true },
-    { name: "Cafe Javas", slug: "cafe-javas", cuisine: "Continental · Breakfast", area: "Oasis Mall", deliveryMins: 40, deliveryFee: 5000, minOrder: 20000, rating: 47, image: "/images/food/cafe-javas.png" },
-    { name: "Mama's Local Kitchen", slug: "mamas-kitchen", cuisine: "Luwombo · Local Dishes", area: "Nakulabye", deliveryMins: 45, deliveryFee: 2500, minOrder: 8000, rating: 48, image: "/images/food/local-kitchen.png", featured: true },
-    { name: "Chips & Chicken Express", slug: "chips-chicken-express", cuisine: "Chips · Chicken · Rolex", area: "Wandegeya", deliveryMins: 25, deliveryFee: 2000, minOrder: 6000, rating: 44, image: "/images/food/chips-chicken.png", featured: true },
-    { name: "Rolex Guy Kikoni", slug: "rolex-guy", cuisine: "Rolex · Street Food", area: "Kikoni", deliveryMins: 20, deliveryFee: 1500, minOrder: 4000, rating: 46, image: "/images/food/rolex.png" },
+    { name: "KFC Kampala", slug: "kfc-kampala", cuisine: "Fried Chicken · Burgers", area: "Kampala Road", deliveryMins: 30, deliveryFee: 4000, minOrder: 15000, rating: 46, image: "/images/food/kfc.jpg", featured: true },
+    { name: "Chicken Tonight", slug: "chicken-tonight", cuisine: "Grilled & Fried Chicken", area: "Kisementi", deliveryMins: 35, deliveryFee: 3000, minOrder: 12000, rating: 45, image: "/images/food/chicken-tonight.jpg", featured: true },
+    { name: "Cafe Javas", slug: "cafe-javas", cuisine: "Continental · Breakfast", area: "Oasis Mall", deliveryMins: 40, deliveryFee: 5000, minOrder: 20000, rating: 47, image: "/images/food/cafe-javas.jpg" },
+    { name: "Mama's Local Kitchen", slug: "mamas-kitchen", cuisine: "Luwombo · Local Dishes", area: "Nakulabye", deliveryMins: 45, deliveryFee: 2500, minOrder: 8000, rating: 48, image: "/images/food/local-kitchen.jpg", featured: true },
+    { name: "Chips & Chicken Express", slug: "chips-chicken-express", cuisine: "Chips · Chicken · Rolex", area: "Wandegeya", deliveryMins: 25, deliveryFee: 2000, minOrder: 6000, rating: 44, image: "/images/food/chips-chicken.jpg", featured: true },
+    { name: "Rolex Guy Kikoni", slug: "rolex-guy", cuisine: "Rolex · Street Food", area: "Kikoni", deliveryMins: 20, deliveryFee: 1500, minOrder: 4000, rating: 46, image: "/images/food/rolex.jpg" },
   ]).$returningId();
 
   const [kfc, ct, cj, mama, chips, rolex] = restoRows.map((r) => r.id);

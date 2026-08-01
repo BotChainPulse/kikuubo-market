@@ -17,7 +17,7 @@ export default function Verification() {
       <header className="bg-white border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>UG</span>
+            <img src="/logo-mark.png" alt="UG Souq logo" className="w-8 h-8 rounded-lg object-cover bg-white" />
             <span className="font-extrabold text-lg">UG Souq</span>
           </Link>
           <a href={WA_LINK} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 px-4 py-2 rounded-full hover:bg-green-100">

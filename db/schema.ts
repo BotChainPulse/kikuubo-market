@@ -8,6 +8,7 @@ import {
   boolean,
   timestamp,
   bigint,
+  mediumtext,
 } from "drizzle-orm/mysql-core";
 
 export const sellers = mysqlTable("sellers", {
@@ -57,6 +58,7 @@ export const listings = mysqlTable("listings", {
   condition: mysqlEnum("condition", ["new", "refurbished", "used"]).notNull().default("new"),
   warrantyMonths: int("warranty_months").notNull().default(0),
   imageNote: varchar("image_note", { length: 255 }).notNull(),
+  imageData: mediumtext("image_data"), // seller-uploaded photo, stored as data URL (Railway has no persistent disk)
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

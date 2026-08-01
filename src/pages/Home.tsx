@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import {
   Search, Store, BadgePercent, Grid3X3,
-  Smartphone, Cpu, Refrigerator, Armchair, Shirt, Sparkles, Tractor, Sun, Wrench,
+  Smartphone, Cpu, Refrigerator, Armchair, Shirt, Sparkles, Tractor, Sun, Wrench, Footprints,
   GraduationCap, Dumbbell, Baby, Gamepad2, Dog, Apple, Bike, BookOpen,
   UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck,
   ShieldCheck, Heart, Home as HomeIcon, BadgeCheck, Handshake, ShoppingCart, Check,
@@ -12,39 +12,32 @@ import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
 import { ORANGE } from '../lib/site'
+import { categoryName } from '../lib/categories'
 
 const services = [
-  { icon: Store, label: 'Super Mall', to: '/' },
+  { icon: Store, label: 'Super Mall', to: '/mall' },
   { icon: UtensilsCrossed, label: 'UG Souq Food', to: '/food' },
-  { icon: Timer, label: 'UG Souq Fresh', tag: '45 min', to: '/food' },
-  { icon: Send, label: 'Boda Send', to: '/' },
-  { icon: Leaf, label: 'Farm Direct', to: '/' },
-  { icon: Recycle, label: 'Refurbished', to: '/' },
-  { icon: Wallet, label: 'UG Souq Pay', to: '/' },
-  { icon: BadgePercent, label: 'Deals', to: '/' },
+  { icon: Timer, label: 'UG Souq Fresh', tag: '45 min', to: '/catalog?category=agriculture&title=UG%20Souq%20Fresh' },
+  { icon: Send, label: 'Boda Send', to: '/boda' },
+  { icon: Leaf, label: 'Farm Direct', to: '/catalog?category=agriculture&title=Farm%20Direct' },
+  { icon: Recycle, label: 'Refurbished', to: '/catalog?condition=refurbished' },
+  { icon: Wallet, label: 'UG Souq Pay', to: '/pay' },
+  { icon: BadgePercent, label: 'Deals', to: '/catalog?deals=1' },
 ]
 
-const categories = [
-  { icon: Cpu, name: 'Electronics', items: '1,850+ items' },
-  { icon: Smartphone, name: 'Phones & Accessories', items: '2,300+ items' },
-  { icon: Recycle, name: 'Refurbished Tech', items: '420+ items' },
-  { icon: Refrigerator, name: 'Appliances', items: '960+ items' },
-  { icon: HomeIcon, name: 'Home & Kitchen', items: '1,420+ items' },
-  { icon: Armchair, name: 'Furniture', items: '780+ items' },
-  { icon: Shirt, name: "Men's Fashion", items: '1,650+ items' },
-  { icon: Sparkles, name: "Women's Fashion", items: '2,140+ items' },
-  { icon: Heart, name: 'Beauty & Health', items: '1,120+ items' },
-  { icon: Tractor, name: 'Farm Produce', items: '940+ items' },
-  { icon: Sun, name: 'Smart Home & Solar', items: '360+ items' },
-  { icon: Wrench, name: 'Tools & Improvement', items: '870+ items' },
-  { icon: GraduationCap, name: 'Office & School', items: '690+ items' },
-  { icon: Dumbbell, name: 'Sports & Outdoors', items: '540+ items' },
-  { icon: Baby, name: 'Baby & Maternity', items: '610+ items' },
-  { icon: Gamepad2, name: 'Toys & Games', items: '480+ items' },
-  { icon: Dog, name: 'Pet Supplies', items: '290+ items' },
-  { icon: Apple, name: 'Food & Grocery', items: '1,300+ items' },
-  { icon: Bike, name: 'Automotive & Boda', items: '450+ items' },
-  { icon: BookOpen, name: 'Books & Media', items: '380+ items' },
+const categoryIcons: Record<string, typeof Cpu> = {
+  electronics: Cpu, phones: Smartphone, refurbished: Recycle, appliances: Refrigerator,
+  home: HomeIcon, furniture: Armchair, 'mens-fashion': Shirt, 'womens-fashion': Sparkles,
+  shoes: Footprints, beauty: Heart, agriculture: Tractor, solar: Sun, tools: Wrench,
+  office: GraduationCap, sports: Dumbbell, baby: Baby, toys: Gamepad2, pets: Dog,
+  grocery: Apple, 'boda-auto': Bike, books: BookOpen, other: Grid3X3,
+}
+
+const homeTiles = [
+  'electronics', 'phones', 'refurbished', 'appliances', 'home',
+  'furniture', 'mens-fashion', 'womens-fashion', 'beauty', 'agriculture',
+  'solar', 'tools', 'office', 'sports', 'baby',
+  'toys', 'pets', 'grocery', 'boda-auto', 'books',
 ]
 
 function useCountdown() {
@@ -105,13 +98,13 @@ export default function HomePage() {
               <button className="m-1 px-5 py-2 rounded-full text-white text-sm font-semibold" style={{ background: ORANGE }}>Search</button>
             </div>
             <div className="mt-5 flex flex-wrap gap-2 text-xs font-medium">
-              <Link to="/" className="px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-orange-300 hover:text-orange-700 transition-colors">Phones under 500K</Link>
+              <Link to="/catalog?category=phones" className="px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-orange-300 hover:text-orange-700 transition-colors">Phones under 500K</Link>
               <Link to="/food" className="px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-orange-300 hover:text-orange-700 transition-colors">Order Food</Link>
-              <Link to="/" className="px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-orange-300 hover:text-orange-700 transition-colors">Flash Sale</Link>
+              <Link to="/catalog?deals=1" className="px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-orange-300 hover:text-orange-700 transition-colors">Today's Deals</Link>
             </div>
           </div>
           <div className="relative">
-            <img src="/images/hero.png" alt="Shopping on UG Souq" className="w-full rounded-2xl shadow-xl object-cover aspect-[3/2]" />
+            <img src="/images/hero.jpg" alt="Shopping on UG Souq" className="w-full rounded-2xl shadow-xl object-cover aspect-[3/2]" />
             <div className="absolute -bottom-4 left-4 bg-white rounded-xl shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm font-semibold">
               <Truck size={16} style={{ color: ORANGE }} /> Free delivery in Kampala
             </div>
@@ -203,13 +196,15 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-4 mt-14">
         <h2 className="text-2xl font-extrabold mb-5 flex items-center gap-2"><Grid3X3 size={22} style={{ color: ORANGE }} /> Shop by Category</h2>
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-          {categories.map(({ icon: Icon, name, items }) => (
-            <a key={name} href="#" className="bg-white rounded-2xl border border-neutral-200 p-4 flex flex-col items-center text-center gap-2 hover:shadow-md hover:border-orange-200 transition-all">
-              <span className="w-11 h-11 rounded-full grid place-items-center bg-orange-50"><Icon size={20} style={{ color: ORANGE }} /></span>
-              <span className="text-sm font-semibold leading-tight">{name}</span>
-              <span className="text-[11px] text-neutral-500">{items}</span>
-            </a>
-          ))}
+          {homeTiles.map((slug) => {
+            const Icon = categoryIcons[slug] ?? Grid3X3
+            return (
+              <Link key={slug} to={`/catalog?category=${slug}`} className="bg-white rounded-2xl border border-neutral-200 p-4 flex flex-col items-center text-center gap-2 hover:shadow-md hover:border-orange-200 transition-all">
+                <span className="w-11 h-11 rounded-full grid place-items-center bg-orange-50"><Icon size={20} style={{ color: ORANGE }} /></span>
+                <span className="text-sm font-semibold leading-tight">{categoryName(slug)}</span>
+              </Link>
+            )
+          })}
         </div>
       </section>
 

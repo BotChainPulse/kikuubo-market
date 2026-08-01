@@ -45,7 +45,7 @@ export default function Header() {
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-neutral-200">
         <div className="mx-auto max-w-7xl px-4 h-16 flex items-center gap-4">
           <Link to="/" className="flex items-center gap-2 shrink-0">
-            <span className="w-9 h-9 rounded-xl grid place-items-center text-white font-extrabold text-lg" style={{ background: ORANGE }}>UG</span>
+            <img src="/logo-mark.png" alt="UG Souq logo" className="w-9 h-9 rounded-lg object-cover bg-white" />
             <span className="font-extrabold text-xl tracking-tight">UG Souq</span>
           </Link>
           <button
@@ -83,7 +83,7 @@ export default function Header() {
           >
             <div className="flex items-center justify-between px-4 h-16 border-b border-neutral-200">
               <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>UG</span>
+                <img src="/logo-mark.png" alt="UG Souq logo" className="w-8 h-8 rounded-lg object-cover bg-white" />
                 <span className="font-extrabold text-lg">Categories</span>
               </div>
               <button onClick={() => setCatOpen(false)} className="p-2 hover:bg-neutral-100 rounded-full" aria-label="Close categories">

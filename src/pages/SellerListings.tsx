@@ -6,8 +6,30 @@ import {
 } from 'lucide-react'
 import { ORANGE, WA_LINK } from '../lib/site'
 import { trpc } from '@/providers/trpc'
+import { CATEGORIES } from '../lib/categories'
+import { Camera, X } from 'lucide-react'
 
-const CATEGORIES = ['phones', 'electronics', 'fashion', 'shoes', 'home', 'farm', 'refurbished', 'food items', 'other']
+// Compress a phone photo to a small JPEG data URL so it fits in the database
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const max = 800
+      const scale = Math.min(1, max / Math.max(img.width, img.height))
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/jpeg', 0.82))
+    }
+    img.onerror = reject
+    img.src = url
+  })
+}
 
 const conditions = [
   { value: 'new', label: 'New', hint: 'Brand new, sealed or unused.' },
@@ -59,7 +81,7 @@ export default function SellerListings() {
     form.name.trim().length >= 3 &&
     Number(form.price) >= 100 &&
     Number(form.stock) >= 1 &&
-    form.imageNote.trim().length >= 2 &&
+    (photo !== null || form.imageNote.trim().length >= 2) &&
     (form.condition === 'new' || Number(form.warrantyMonths) >= 1)
 
   const submit = async () => {
@@ -72,9 +94,11 @@ export default function SellerListings() {
       stock: Number(form.stock),
       condition: form.condition,
       warrantyMonths: form.condition === 'new' ? 0 : Number(form.warrantyMonths),
-      imageNote: form.imageNote.trim(),
+      imageNote: form.imageNote.trim() || undefined,
+      imageData: photo ?? undefined,
     })
     setForm({ name: '', category: 'phones', price: '', oldPrice: '', stock: '1', condition: 'new', warrantyMonths: '6', imageNote: '' })
+    setPhoto(null)
     setJustAdded(true)
   }
 
@@ -83,7 +107,7 @@ export default function SellerListings() {
       <header className="bg-white border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>UG</span>
+            <img src="/logo-mark.png" alt="UG Souq logo" className="w-8 h-8 rounded-lg object-cover bg-white" />
             <span className="font-extrabold text-lg">UG Souq <span className="font-semibold text-neutral-500">Seller Center</span></span>
           </Link>
           <a href={WA_LINK} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 px-4 py-2 rounded-full hover:bg-green-100">
@@ -183,7 +207,7 @@ export default function SellerListings() {
                     onChange={(e) => set('category', e.target.value)}
                     className="mt-1 w-full h-11 rounded-xl border border-neutral-300 px-3 text-sm bg-white outline-none focus:border-orange-500"
                   >
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
+                    {CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -256,16 +280,46 @@ export default function SellerListings() {
               )}
 
               <div>
-                <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Photo description *</label>
+                <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Item photo *</label>
+                <p className="mt-1 text-xs text-neutral-500">
+                  Take a photo with your phone or upload one — new, refurbished and used items all need a real photo.
+                </p>
+                {photo ? (
+                  <div className="mt-3 relative w-40">
+                    <img src={photo} alt="Item" className="w-40 h-40 object-cover rounded-xl border border-neutral-200" />
+                    <button
+                      type="button"
+                      onClick={() => setPhoto(null)}
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-neutral-900 text-white grid place-items-center"
+                      title="Remove photo"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="mt-3 flex flex-col items-center justify-center gap-2 w-full sm:w-64 h-36 rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50 cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                    <Camera size={24} style={{ color: ORANGE }} />
+                    <span className="text-sm font-semibold text-neutral-600">{photoBusy ? 'Processing…' : 'Tap to take or upload a photo'}</span>
+                    <span className="text-[11px] text-neutral-400">JPG or PNG — we compress it automatically</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => onPhoto(e.target.files?.[0])}
+                    />
+                  </label>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Photo notes — optional</label>
                 <input
                   value={form.imageNote}
                   onChange={(e) => set('imageNote', e.target.value)}
-                  placeholder="e.g. Will send 4 photos on WhatsApp: front, back, screen on, box"
+                  placeholder="e.g. Small scratch on the back cover, shown in photo"
                   className="mt-1 w-full h-11 rounded-xl border border-neutral-300 px-4 text-sm outline-none focus:border-orange-500"
                 />
-                <p className="mt-1.5 text-xs text-neutral-500">
-                  Tell us what photos you have — our team collects them on WhatsApp during review.
-                </p>
               </div>
 
               {addListing.error && (
@@ -291,11 +345,18 @@ export default function SellerListings() {
             <div className="mt-4 divide-y divide-neutral-100">
               {seller.listings.map((l) => (
                 <div key={l.id} className="py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate">{l.name}</p>
-                    <p className="text-xs text-neutral-500">
-                      {fmt(l.price)} · {l.condition}{l.condition !== 'new' ? `, ${l.warrantyMonths}mo warranty` : ''} · stock {l.stock}
-                    </p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {(l as { imageData?: string | null }).imageData ? (
+                      <img src={(l as { imageData?: string | null }).imageData!} alt={l.name} className="w-12 h-12 rounded-lg object-cover border border-neutral-200 shrink-0" />
+                    ) : (
+                      <span className="w-12 h-12 rounded-lg bg-neutral-100 grid place-items-center shrink-0"><Package size={18} className="text-neutral-400" /></span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{l.name}</p>
+                      <p className="text-xs text-neutral-500">
+                        {fmt(l.price)} · {l.condition}{l.condition !== 'new' ? `, ${l.warrantyMonths}mo warranty` : ''} · stock {l.stock}
+                      </p>
+                    </div>
                   </div>
                   <StatusPill status={l.status} />
                 </div>

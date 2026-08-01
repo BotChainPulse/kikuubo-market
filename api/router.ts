@@ -41,6 +41,63 @@ export const appRouter = createRouter({
       if (!row) return null;
       return { ...row.product, sellerName: row.seller.shopName, sellerVerified: row.seller.verified };
     }),
+    browse: publicQuery
+      .input(z.object({
+        category: z.string().optional(),
+        condition: z.enum(["new", "refurbished", "used"]).optional(),
+        deals: z.boolean().optional(),
+      }))
+      .query(async ({ input }) => {
+        const db = getDb();
+        const rows = await db
+          .select({ product: products, seller: sellers })
+          .from(products)
+          .innerJoin(sellers, eq(products.sellerId, sellers.id));
+        const cat = input.category?.trim().toLowerCase();
+        const items = rows
+          .map(({ product, seller }) => ({
+            kind: "product" as const,
+            ...product,
+            sellerName: seller.shopName,
+            sellerVerified: seller.verified,
+            sellerPhone: seller.phone,
+            discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
+          }))
+          .filter((p) => (cat ? p.category.toLowerCase() === cat : true))
+          .filter((p) => (input.condition ? p.condition === input.condition : true))
+          .filter((p) => (input.deals ? p.discount >= 5 : true));
+        // Approved seller listings appear on the market too, with their uploaded photos
+        const lrows = await db
+          .select({ listing: listings, seller: sellers })
+          .from(listings)
+          .innerJoin(sellers, eq(listings.sellerId, sellers.id))
+          .where(eq(listings.status, "approved"));
+        const litems = lrows
+          .map(({ listing, seller }) => ({
+            kind: "listing" as const,
+            id: listing.id,
+            sellerId: listing.sellerId,
+            name: listing.name,
+            slug: `listing-${listing.id}`,
+            category: listing.category,
+            price: listing.price,
+            oldPrice: listing.oldPrice,
+            image: listing.imageData ?? "/images/product-default.png",
+            stock: listing.stock,
+            condition: listing.condition,
+            warrantyMonths: listing.warrantyMonths,
+            flashSale: false,
+            createdAt: listing.createdAt,
+            sellerName: seller.shopName,
+            sellerVerified: seller.verified,
+            sellerPhone: seller.phone,
+            discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
+          }))
+          .filter((p) => (cat ? p.category.toLowerCase() === cat : true))
+          .filter((p) => (input.condition ? p.condition === input.condition : true))
+          .filter((p) => (input.deals ? p.discount >= 5 : true));
+        return [...items, ...litems].sort((a, b) => Number(b.sellerVerified) - Number(a.sellerVerified));
+      }),
     search: publicQuery.input(z.object({ q: z.string().min(1) })).query(async ({ input }) => {
       const db = getDb();
       const q = `%${input.q.trim()}%`;
@@ -165,7 +222,8 @@ export const appRouter = createRouter({
         stock: z.number().min(1).max(10000),
         condition: z.enum(["new", "refurbished", "used"]),
         warrantyMonths: z.number().min(0).max(60),
-        imageNote: z.string().min(2),
+        imageNote: z.string().optional(),
+        imageData: z.string().max(1_500_000).optional(), // photo as data URL
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
@@ -181,7 +239,8 @@ export const appRouter = createRouter({
           stock: input.stock,
           condition: input.condition,
           warrantyMonths: input.condition === "new" ? 0 : input.warrantyMonths,
-          imageNote: input.imageNote,
+          imageNote: input.imageNote ?? (input.imageData ? "Photo uploaded by seller" : ""),
+          imageData: input.imageData ?? null,
           status: "pending",
         }).$returningId();
         return { id: row.id };

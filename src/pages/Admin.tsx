@@ -63,7 +63,7 @@ export default function Admin() {
       <header className="bg-neutral-900 text-white">
         <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 font-extrabold">
-            <span className="w-8 h-8 rounded-lg grid place-items-center text-sm" style={{ background: ORANGE }}>UG</span>
+            <img src="/logo-mark.png" alt="UG Souq logo" className="w-8 h-8 rounded-lg object-cover bg-white" />
             UG Souq Admin
           </div>
           <div className="flex items-center gap-4 text-sm">

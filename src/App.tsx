@@ -15,6 +15,9 @@ import Terms from './pages/Terms'
 import SearchResults from './pages/SearchResults'
 import SellerListings from './pages/SellerListings'
 import Admin from './pages/Admin'
+import Catalog from './pages/Catalog'
+import Boda from './pages/Boda'
+import Pay from './pages/Pay'
 
 export default function App() {
   return (
@@ -35,6 +38,10 @@ export default function App() {
         <Route path="/search" element={<SearchResults />} />
         <Route path="/sell/listings" element={<SellerListings />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/catalog" element={<Catalog />} />
+        <Route path="/mall" element={<Catalog />} />
+        <Route path="/boda" element={<Boda />} />
+        <Route path="/pay" element={<Pay />} />
       </Routes>
     </CartProvider>
   )
