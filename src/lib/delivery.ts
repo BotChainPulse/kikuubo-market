@@ -36,3 +36,21 @@ export const PICKUP_STATIONS: Record<string, string> = {
   kampala: 'UG Souq Pickup Point — Kampala Road, Central Business District',
   upcountry: 'Nearest UG Souq partner agent in your town',
 }
+
+// Stations a buyer can choose when "Pickup station" is selected at checkout
+export const PICKUP_POINTS: Record<string, { id: string; name: string; detail: string }[]> = {
+  kampala: [
+    { id: 'cbd', name: 'UG Souq CBD Point', detail: 'Kampala Road, Central Business District' },
+    { id: 'kikuubo', name: 'Kikuubo Lane Point', detail: 'Kikuubo Lane, near Nakivubo Stadium' },
+    { id: 'ntinda', name: 'Ntinda Point', detail: 'Ntinda Shopping Centre, Ntinda Road' },
+    { id: 'makindye', name: 'Makindye Point', detail: 'Makindye, near the military police junction' },
+  ],
+  upcountry: [
+    { id: 'entebbe', name: 'Entebbe Agent', detail: 'Entebbe town centre' },
+    { id: 'jinja', name: 'Jinja Agent', detail: 'Jinja main street' },
+    { id: 'mbarara', name: 'Mbarara Agent', detail: 'Mbarara High Street' },
+    { id: 'gulu', name: 'Gulu Agent', detail: 'Gulu town centre' },
+    { id: 'mbale', name: 'Mbale Agent', detail: 'Mbale Republic Street' },
+    { id: 'masaka', name: 'Masaka Agent', detail: 'Masaka town centre' },
+  ],
+}

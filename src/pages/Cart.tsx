@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { Minus, Plus, Trash2, ShoppingCart, CircleCheckBig, Wallet, Truck, Package } from 'lucide-react'
-import { DELIVERY_ZONES } from '../lib/delivery'
+import { DELIVERY_ZONES, PICKUP_POINTS } from '../lib/delivery'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { fmt, useCart } from '../lib/cart'
@@ -22,16 +22,26 @@ export default function Cart() {
 
   const [zoneId, setZoneId] = useState('kampala')
   const [shipMethod, setShipMethod] = useState<'door' | 'pickup'>('door')
+  const [stationId, setStationId] = useState('')
   const zone = DELIVERY_ZONES.find((z) => z.id === zoneId) ?? DELIVERY_ZONES[0]
+  const stations = PICKUP_POINTS[zone.id] ?? []
+  const station = stations.find((s) => s.id === stationId)
   const deliveryFee = items.length ? (shipMethod === 'door' ? zone.doorFee : zone.pickupFee) : 0
   const total = subtotal + deliveryFee
-  const valid = form.name.length >= 2 && form.phone.length >= 9 && form.address.length >= 5
+  const valid =
+    form.name.length >= 2 &&
+    form.phone.length >= 9 &&
+    (shipMethod === 'pickup' ? !!station : form.address.length >= 5)
 
   const submit = async () => {
+    const delivery =
+      shipMethod === 'pickup'
+        ? `Pickup: ${station!.name} (${station!.detail}) — ${zone.label}`
+        : `${form.address} — ${zone.label}, door delivery`
     const order = await createOrder.mutateAsync({
       customerName: form.name,
       phone: form.phone,
-      address: `${form.address} — ${zone.label}, ${shipMethod === 'door' ? 'door delivery' : 'pickup station'}`,
+      address: delivery,
       paymentMethod: form.payment,
       items: items.map((i) => ({ itemType: i.itemType, itemId: i.itemId, name: i.name, price: i.price, qty: i.qty })),
       deliveryFee,
@@ -147,13 +157,15 @@ export default function Cart() {
                   <label className="block text-sm font-semibold mb-1.5">Phone (MoMo/Airtel) *</label>
                   <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500" placeholder="07XX XXX XXX" />
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-semibold mb-1.5">Delivery address *</label>
-                  <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500" placeholder="e.g. Ntinda, near Capital Shoppers" />
-                </div>
+                {shipMethod === 'door' && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-semibold mb-1.5">Delivery address *</label>
+                    <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500" placeholder="e.g. Ntinda, near Capital Shoppers" />
+                  </div>
+                )}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-semibold mb-1.5">Delivery region *</label>
-                  <select value={zoneId} onChange={(e) => setZoneId(e.target.value)} className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500 bg-white">
+                  <select value={zoneId} onChange={(e) => { setZoneId(e.target.value); setStationId('') }} className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500 bg-white">
                     {DELIVERY_ZONES.map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
                   </select>
                 </div>
@@ -169,6 +181,23 @@ export default function Cart() {
                     <p className="text-xs text-neutral-500 mt-0.5">{fmt(zone.pickupFee)} · {zone.pickupEta}</p>
                   </button>
                 </div>
+                {shipMethod === 'pickup' && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-semibold mb-1.5">Select pickup station *</label>
+                    <div className="space-y-2">
+                      {stations.map((s) => (
+                        <button key={s.id} type="button" onClick={() => setStationId(s.id)}
+                          className={`w-full rounded-xl border-2 p-3 text-left transition-all ${stationId === s.id ? 'border-orange-500 bg-orange-50' : 'border-neutral-200 hover:border-neutral-300'}`}>
+                          <p className="text-sm font-bold flex items-center gap-1.5">
+                            <span className={`w-3.5 h-3.5 rounded-full border-2 inline-block ${stationId === s.id ? 'border-orange-500 bg-orange-500' : 'border-neutral-300'}`} />
+                            {s.name}
+                          </p>
+                          <p className="text-xs text-neutral-500 mt-0.5 ml-5">{s.detail}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {([['mtn_momo', 'MTN MoMo'], ['airtel_money', 'Airtel Money'], ['cash', 'Cash on delivery']] as const).map(([v, l]) => (
