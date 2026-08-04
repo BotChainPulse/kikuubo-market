@@ -57,6 +57,11 @@ const TABLES = [
     \`address\` text NOT NULL, \`payment_method\` enum('mtn_momo','airtel_money','cash') NOT NULL,
     \`subtotal\` int NOT NULL, \`delivery_fee\` int NOT NULL DEFAULT 0, \`total\` int NOT NULL,
     \`status\` enum('placed','confirmed','on_the_way','delivered','cancelled') NOT NULL DEFAULT 'placed',
+    \`payment_status\` enum('unpaid','pending_confirmation','paid') NOT NULL DEFAULT 'unpaid',
+    \`payment_ref\` varchar(64) NULL,
+    \`commission_fee\` int NOT NULL DEFAULT 0,
+    \`paid_out\` boolean NOT NULL DEFAULT false,
+    \`payout_ref\` varchar(64) NULL,
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS order_items (
@@ -82,6 +87,8 @@ const ALTERS = [
   "ALTER TABLE orders ADD COLUMN \`payment_status\` enum('unpaid','pending_confirmation','paid') NOT NULL DEFAULT 'unpaid'",
   "ALTER TABLE orders ADD COLUMN \`payment_ref\` varchar(64) NULL",
   "ALTER TABLE orders ADD COLUMN \`commission_fee\` int NOT NULL DEFAULT 0",
+  "ALTER TABLE orders ADD COLUMN \`paid_out\` boolean NOT NULL DEFAULT false",
+  "ALTER TABLE orders ADD COLUMN \`payout_ref\` varchar(64) NULL",
   "UPDATE orders SET commission_fee = ROUND(subtotal * 0.07) WHERE commission_fee = 0 AND subtotal > 0",
 ];
 

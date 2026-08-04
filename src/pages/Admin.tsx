@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { ShieldCheck, Store, Package, Users, LayoutDashboard, LogOut, Check, X, ChevronDown, ClipboardList, Wallet, Download } from 'lucide-react'
+import { ShieldCheck, Store, Package, Users, LayoutDashboard, LogOut, Check, X, ChevronDown, ClipboardList, Wallet, Download, Banknote } from 'lucide-react'
 import { trpc } from '../providers/trpc'
 import { fmt } from '../lib/cart'
 import { paymentLabel } from '../lib/payStatus'
 import { ORANGE } from '../lib/site'
+import PayoutPanel from '../components/admin/PayoutPanel'
 
 const KEY_STORAGE = 'ugsouq_admin_key'
 const ORDER_STATUSES = ['placed', 'confirmed', 'on_the_way', 'delivered', 'cancelled'] as const
 const STATUS_LABEL: Record<string, string> = {
   placed: 'Placed', confirmed: 'Confirmed', on_the_way: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled',
 }
-type Tab = 'overview' | 'sellers' | 'listings' | 'orders' | 'accounts' | 'affiliates'
+type Tab = 'overview' | 'sellers' | 'listings' | 'orders' | 'accounts' | 'affiliates' | 'payouts'
 
 export default function Admin() {
   const [key, setKey] = useState(() => sessionStorage.getItem(KEY_STORAGE) ?? '')
@@ -78,7 +79,7 @@ export default function Admin() {
           </div>
         </div>
         <div className="mx-auto max-w-7xl px-4 flex gap-1 text-sm">
-          {([['overview', LayoutDashboard, 'Overview'], ['sellers', Store, 'Sellers'], ['listings', ClipboardList, 'Listings'], ['orders', Package, 'Orders'], ['accounts', Wallet, 'Accounts'], ['affiliates', Users, 'Affiliates']] as const).map(([t, Icon, label]) => (
+          {([['overview', LayoutDashboard, 'Overview'], ['sellers', Store, 'Sellers'], ['listings', ClipboardList, 'Listings'], ['orders', Package, 'Orders'], ['accounts', Wallet, 'Accounts'], ['affiliates', Users, 'Affiliates'], ['payouts', Banknote, 'Payouts']] as const).map(([t, Icon, label]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -96,6 +97,7 @@ export default function Admin() {
         {tab === 'orders' && <Orders adminKey={key} />}
         {tab === 'accounts' && <Accounts adminKey={key} />}
         {tab === 'affiliates' && <Affiliates adminKey={key} />}
+        {tab === 'payouts' && <PayoutPanel adminKey={key} />}
       </main>
     </div>
   )

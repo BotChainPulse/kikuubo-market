@@ -103,6 +103,8 @@ export const orders = mysqlTable("orders", {
   status: mysqlEnum("status", ["placed", "confirmed", "on_the_way", "delivered", "cancelled"]).notNull().default("placed"),
   paymentStatus: mysqlEnum("payment_status", ["unpaid", "pending_confirmation", "paid"]).notNull().default("unpaid"),
   paymentRef: varchar("payment_ref", { length: 64 }), // MoMo/Airtel transaction ID the buyer enters after sending money
+  paidOut: boolean("paid_out").notNull().default(false),
+  payoutRef: varchar("payout_ref", { length: 64 }),
   commissionFee: int("commission_fee").notNull().default(0), // UG Souq's cut of the subtotal (COMMISSION_RATE at order time)
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

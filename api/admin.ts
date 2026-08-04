@@ -3,8 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { eq, desc, and } from "drizzle-orm";
 import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
-import { sellers, orders, orderItems, affiliates, products, listings, payouts } from "../db/schema";
-import axios from "axios";
+import { sellers, orders, orderItems, affiliates, products, listings } from "../db/schema";
 
 // Change this key (or set ADMIN_KEY in the environment) before going public.
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "ugsouq-admin-2026";
@@ -15,8 +14,21 @@ function requireAdmin(key: string) {
 
 const ORDER_STATUSES = ["placed", "confirmed", "on_the_way", "delivered", "cancelled"] as const;
 
-const FLW_SECRET = process.env.FLW_SECRET_KEY!;
+const FLW_SECRET = process.env.FLW_SECRET_KEY;
 const FLW_BASE = "https://api.flutterwave.com/v3";
+
+const normalizeUgPhone = (value: string) => {
+  const digits = (value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("256")) return digits;
+  if (digits.startsWith("0")) return `256${digits.slice(1)}`;
+  return `256${digits}`;
+};
+
+const normalizeOrderCodes = (raw: string | string[]) => {
+  const arr = Array.isArray(raw) ? raw : raw.split(",");
+  return arr.map((x) => x.trim().toUpperCase()).filter(Boolean);
+};
 
 export const adminRouter = createRouter({
   login: publicQuery.input(z.object({ key: z.string() })).mutation(({ input }) => {
@@ -157,44 +169,123 @@ export const adminRouter = createRouter({
     }),
 
   // ============================================
-  // ⬇️ PAYOUT QUERIES — ADD THIS ENTIRE SECTION
+  // PAYOUTS
   // ============================================
-  
+
   pendingPayouts: publicQuery
     .input(z.object({ key: z.string() }))
     .query(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
-      
-      // Get all delivered, paid, not-yet-paid-out orders grouped by seller
-      const result = await db.execute(`
-        SELECT 
-          s.id as seller_id,
-          s.shop_name as seller_name,
-          s.payout_method,
-          s.payout_number,
-          COALESCE(SUM(o.subtotal - o.commission_fee), 0) as total_owed,
-          STRING_AGG(o.code, ',') as order_codes,
-          COUNT(o.id) as order_count
-        FROM sellers s
-        JOIN orders o ON o.seller_id = s.id
-        WHERE o.status = 'delivered' 
-          AND o.payment_status = 'paid'
-          AND (o.paid_out = false OR o.paid_out IS NULL)
-        GROUP BY s.id, s.shop_name, s.payout_method, s.payout_number
-        HAVING SUM(o.subtotal - o.commission_fee) > 0
-        ORDER BY total_owed DESC
-      `);
 
-      return { success: true, pending: result.rows };
+      const eligibleOrders = await db
+        .select()
+        .from(orders)
+        .where(
+          and(
+            eq(orders.status, "delivered"),
+            eq(orders.paymentStatus, "paid"),
+            eq(orders.paidOut, false),
+          ),
+        )
+        .orderBy(desc(orders.createdAt));
+
+      if (eligibleOrders.length === 0) return { success: true, pending: [] as any[] };
+
+      const sellerRows = await db.select().from(sellers);
+      const sellerById = new Map(sellerRows.map((s) => [Number(s.id), s]));
+
+      const productRows = await db.select().from(products);
+      const productById = new Map(productRows.map((p) => [Number(p.id), p]));
+
+      const grouped = new Map<
+        number,
+        {
+          sellerId: number;
+          sellerName: string;
+          payoutMethod: string | null;
+          payoutNumber: string | null;
+          totalOwed: number;
+          orderCodeSet: Set<string>;
+        }
+      >();
+
+      for (const order of eligibleOrders) {
+        const items = await db
+          .select()
+          .from(orderItems)
+          .where(and(eq(orderItems.orderId, order.id), eq(orderItems.itemType, "product")));
+
+        if (items.length === 0) continue;
+
+        const perSellerGross = new Map<number, number>();
+        let grossTotal = 0;
+
+        for (const it of items) {
+          const product = productById.get(Number(it.itemId));
+          if (!product) continue;
+
+          const lineTotal = Number(it.price) * Number(it.qty);
+          grossTotal += lineTotal;
+
+          const sid = Number(product.sellerId);
+          perSellerGross.set(sid, (perSellerGross.get(sid) ?? 0) + lineTotal);
+        }
+
+        if (grossTotal <= 0) continue;
+
+        for (const [sid, sellerGross] of perSellerGross.entries()) {
+          const seller = sellerById.get(sid);
+          if (!seller) continue;
+
+          const allocatedCommission = Math.round(
+            (sellerGross / grossTotal) * Number(order.commissionFee ?? 0),
+          );
+          const payoutNet = sellerGross - allocatedCommission;
+          if (payoutNet <= 0) continue;
+
+          const row = grouped.get(sid);
+          if (!row) {
+            grouped.set(sid, {
+              sellerId: sid,
+              sellerName: seller.shopName,
+              payoutMethod: seller.payoutMethod ?? null,
+              payoutNumber: seller.payoutNumber ?? null,
+              totalOwed: payoutNet,
+              orderCodeSet: new Set([order.code]),
+            });
+          } else {
+            row.totalOwed += payoutNet;
+            row.orderCodeSet.add(order.code);
+          }
+        }
+      }
+
+      const pending = Array.from(grouped.values())
+        .map((x) => {
+          const codes = Array.from(x.orderCodeSet);
+          return {
+            seller_id: x.sellerId,
+            seller_name: x.sellerName,
+            payout_method: x.payoutMethod,
+            payout_number: x.payoutNumber,
+            total_owed: x.totalOwed,
+            order_count: codes.length,
+            order_codes: codes.join(","),
+            order_codes_list: codes,
+          };
+        })
+        .sort((a, b) => b.total_owed - a.total_owed);
+
+      return { success: true, pending };
     }),
 
   sendPayout: publicQuery
     .input(z.object({
       key: z.string(),
       sellerId: z.number(),
-      amount: z.number(),
-      orderCodes: z.string(),
+      amount: z.number().positive(),
+      orderCodes: z.union([z.string(), z.array(z.string())]),
       payoutMethod: z.string(),
       payoutNumber: z.string(),
       sellerName: z.string(),
@@ -203,121 +294,87 @@ export const adminRouter = createRouter({
       requireAdmin(input.key);
       const db = getDb();
 
-      const reference = `UGS-PAYOUT-${input.sellerId}-${Date.now()}`;
-
-      const getBankCode = (method: string) => {
-        const m = method?.toLowerCase() || "";
-        if (m.includes("airtel")) return "MPS";
-        return "MPS"; // MTN default
-      };
-
-      const cleanNumber = input.payoutNumber.replace(/\D/g, "").replace(/^0/, "256");
-
-      try {
-        const response = await axios.post(
-          `${FLW_BASE}/transfers`,
-          {
-            account_bank: getBankCode(input.payoutMethod),
-            account_number: cleanNumber,
-            amount: Math.round(input.amount),
-            currency: "UGX",
-            narration: `UG Souq payout to ${input.sellerName}`,
-            reference: reference,
-            callback_url: `${process.env.APP_URL}/api/trpc/admin.payoutWebhook`,
-            meta: [
-              { seller_id: input.sellerId },
-              { order_codes: input.orderCodes }
-            ]
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${FLW_SECRET}`,
-              "Content-Type": "application/json"
-            }
-          }
-        );
-
-        const flwData = response.data.data;
-
-        // Record payout
-        await db.insert(payouts).values({
-          sellerId: input.sellerId,
-          orderIds: input.orderCodes,
-          amount: input.amount.toString(),
-          commission: "0",
-          flutterwaveFee: (flwData.fee || 0).toString(),
-          status: flwData.status === "NEW" ? "processing" : flwData.status.toLowerCase(),
-          flutterwaveTransferId: flwData.id?.toString(),
-          flutterwaveReference: reference,
-        });
-
-        // Mark orders as paid out
-        const codes = input.orderCodes.split(",");
-        for (const code of codes) {
-          await db.update(orders)
-            .set({ paidOut: true, payoutRef: reference })
-            .where(eq(orders.code, code.trim()));
-        }
-
-        return {
-          success: true,
-          message: "Payout initiated",
-          reference,
-          flutterwaveStatus: flwData.status
-        };
-
-      } catch (error: any) {
-        console.error("Payout error:", error.response?.data || error.message);
-        
-        await db.insert(payouts).values({
-          sellerId: input.sellerId,
-          orderIds: input.orderCodes,
-          amount: input.amount.toString(),
-          commission: "0",
-          status: "failed",
-          flutterwaveReference: reference,
-          failureReason: error.response?.data?.message || error.message,
-        });
-
+      if (!FLW_SECRET) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: error.response?.data?.message || "Payout failed"
+          message: "FLW_SECRET_KEY is missing in environment variables.",
         });
       }
+
+      const reference = `UGS-PAYOUT-${input.sellerId}-${Date.now()}`;
+
+      const accountNumber = normalizeUgPhone(input.payoutNumber);
+      const orderCodes = normalizeOrderCodes(input.orderCodes);
+
+      if (!accountNumber) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid payout number.",
+        });
+      }
+
+      const res = await fetch(`${FLW_BASE}/transfers`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${FLW_SECRET}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          account_bank: "MPS",
+          account_number: accountNumber,
+          amount: Math.round(input.amount),
+          currency: "UGX",
+          narration: `UG Souq payout to ${input.sellerName}`,
+          reference,
+          callback_url: `${process.env.APP_URL}/api/trpc/admin.payoutWebhook`,
+          meta: [{ seller_id: input.sellerId }, { order_codes: orderCodes }],
+        }),
+      });
+
+      const payload: any = await res.json().catch(() => ({}));
+      if (!res.ok || payload?.status !== "success") {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: payload?.message || "Payout failed",
+        });
+      }
+
+      for (const code of orderCodes) {
+        await db
+          .update(orders)
+          .set({ paidOut: true, payoutRef: reference })
+          .where(eq(orders.code, code));
+      }
+
+      return {
+        success: true,
+        message: "Payout initiated",
+        reference,
+        flutterwaveStatus: payload?.data?.status ?? "NEW",
+      };
     }),
 
   payoutHistory: publicQuery
     .input(z.object({ key: z.string() }))
-    .query(async ({ input }) => {
+    .query(({ input }) => {
       requireAdmin(input.key);
-      const db = getDb();
-      const rows = await db.select().from(payouts).orderBy(desc(payouts.createdAt));
-      return { success: true, payouts: rows };
+      return { success: true, payouts: [] as any[] };
     }),
 
   payoutWebhook: publicQuery
     .input(z.any())
     .mutation(async ({ input }) => {
+      const db = getDb();
       const payload = input;
-      
-      if (payload.event === "transfer.completed") {
-        const data = payload.data;
-        const reference = data.reference;
 
-        const newStatus = data.status === "SUCCESSFUL" ? "paid" : 
-                          data.status === "FAILED" ? "failed" : "processing";
+      if (payload?.event === "transfer.completed") {
+        const data = payload?.data;
+        const reference = String(data?.reference ?? "");
+        const status = String(data?.status ?? "").toUpperCase();
 
-        await db.update(payouts)
-          .set({
-            status: newStatus,
-            paidAt: newStatus === "paid" ? new Date() : undefined,
-            failureReason: data.complete_message || undefined,
-          })
-          .where(eq(payouts.flutterwaveReference, reference));
-
-        // If failed, revert orders so they can be retried
-        if (newStatus === "failed") {
-          await db.update(orders)
+        if (reference && status !== "SUCCESSFUL") {
+          await db
+            .update(orders)
             .set({ paidOut: false, payoutRef: null })
             .where(eq(orders.payoutRef, reference));
         }
