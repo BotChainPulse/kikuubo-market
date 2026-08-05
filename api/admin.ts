@@ -18,8 +18,69 @@ function requireAdmin(key: string) {
 
 const ORDER_STATUSES = ["placed", "confirmed", "pending_delivery", "on_the_way", "delivered", "cancelled"] as const;
 
+// Flutterwave V4 (Next Gen) OAuth2 + V3 fallback
 const FLW_SECRET = process.env.FLW_SECRET_KEY;
+const FLW_CLIENT_ID = process.env.FLW_CLIENT_ID;
+const FLW_CLIENT_SECRET = process.env.FLW_CLIENT_SECRET;
 const FLW_BASE = "https://api.flutterwave.com/v3";
+
+let flwAccessToken: string | null = null;
+let flwTokenExpiresAt = 0;
+
+async function getFlutterwaveToken(): Promise<string | null> {
+  // V3 style: direct secret key
+  if (FLW_SECRET && FLW_SECRET.startsWith("FLWSECK")) {
+    return FLW_SECRET;
+  }
+
+  // V4 OAuth2 style
+  if (!FLW_CLIENT_ID || !FLW_CLIENT_SECRET) return null;
+
+  // Use cached token if not expired
+  if (flwAccessToken && Date.now() < flwTokenExpiresAt - 60000) {
+    return flwAccessToken;
+  }
+
+  try {
+    const res = await fetch(`${FLW_BASE}/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "client_credentials",
+        client_id: FLW_CLIENT_ID,
+        client_secret: FLW_CLIENT_SECRET,
+      }),
+    });
+    const data: any = await res.json().catch(() => ({}));
+    if (res.ok && data?.access_token) {
+      flwAccessToken = data.access_token;
+      flwTokenExpiresAt = Date.now() + (data.expires_in ?? 3600) * 1000;
+      return flwAccessToken;
+    }
+    console.error("[FLW] Token fetch failed:", data);
+    return null;
+  } catch (e) {
+    console.error("[FLW] Token network error:", e);
+    return null;
+  }
+}
+
+async function flwFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const token = await getFlutterwaveToken();
+  if (!token) throw new Error("Flutterwave not configured. Add FLW_SECRET_KEY or FLW_CLIENT_ID + FLW_CLIENT_SECRET to Railway Variables.");
+
+  const isV4 = !token.startsWith("FLWSECK");
+  const authHeader = isV4 ? `Bearer ${token}` : `Bearer ${token}`;
+
+  return fetch(`${FLW_BASE}${path}`, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: authHeader,
+      "Content-Type": "application/json",
+    },
+  });
+}
 
 const normalizeUgPhone = (value: string) => {
   const digits = (value ?? "").replace(/\D/g, "");
@@ -745,12 +806,8 @@ export const adminRouter = createRouter({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payout number." });
         }
 
-        const res = await fetch(`${FLW_BASE}/transfers`, {
+        const res = await flwFetch("/transfers", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${FLW_SECRET}`,
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify({
             account_bank: "MPS",
             account_number: accountNumber,
@@ -865,9 +922,7 @@ export const adminRouter = createRouter({
 
       try {
         // Test by getting balance
-        const res = await fetch(`${FLW_BASE}/balances/UGX`, {
-          headers: { Authorization: `Bearer ${FLW_SECRET}` },
-        });
+        const res = await flwFetch("/balances/UGX");
         const data: any = await res.json().catch(() => ({}));
 
         if (res.ok && data?.status === "success") {
