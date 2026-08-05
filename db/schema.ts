@@ -25,6 +25,10 @@ export const sellers = mysqlTable("sellers", {
   tin: varchar("tin", { length: 32 }),
   payoutMethod: varchar("payout_method", { length: 32 }),
   payoutNumber: varchar("payout_number", { length: 32 }),
+  commissionTermsAccepted: boolean("commission_terms_accepted").notNull().default(false),
+  sellerContractAccepted: boolean("seller_contract_accepted").notNull().default(false),
+  commissionTermsAcceptedAt: timestamp("commission_terms_accepted_at"),
+  sellerContractAcceptedAt: timestamp("seller_contract_accepted_at"),
   verified: boolean("verified").notNull().default(false),
   rating: int("rating").notNull().default(45), // store rating ×10 (45 = 4.5)
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
@@ -100,7 +104,7 @@ export const orders = mysqlTable("orders", {
   subtotal: int("subtotal").notNull(),
   deliveryFee: int("delivery_fee").notNull().default(0),
   total: int("total").notNull(),
-  status: mysqlEnum("status", ["placed", "confirmed", "on_the_way", "delivered", "cancelled"]).notNull().default("placed"),
+  status: mysqlEnum("status", ["placed", "confirmed", "pending_delivery", "on_the_way", "delivered", "cancelled"]).notNull().default("placed"),
   paymentStatus: mysqlEnum("payment_status", ["unpaid", "pending_confirmation", "paid"]).notNull().default("unpaid"),
   paymentRef: varchar("payment_ref", { length: 64 }), // MoMo/Airtel transaction ID the buyer enters after sending money
   paidOut: boolean("paid_out").notNull().default(false),
@@ -133,5 +137,42 @@ export const affiliates = mysqlTable("affiliates", {
   phone: varchar("phone", { length: 32 }).notNull(),
   channel: varchar("channel", { length: 64 }).notNull(),
   code: varchar("code", { length: 16 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const deliveryPartners = mysqlTable("delivery_partners", {
+  id: serial("id").primaryKey(),
+  fullName: varchar("full_name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  area: varchar("area", { length: 128 }).notNull(),
+  vehicleType: varchar("vehicle_type", { length: 64 }).notNull(),
+  payoutMethod: varchar("payout_method", { length: 32 }).notNull(),
+  payoutNumber: varchar("payout_number", { length: 32 }).notNull(),
+  contractAccepted: boolean("contract_accepted").notNull().default(false),
+  deliveryShareAccepted: boolean("delivery_share_accepted").notNull().default(false),
+  contractAcceptedAt: timestamp("contract_accepted_at"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const sellerAdBookings = mysqlTable("seller_ad_bookings", {
+  id: serial("id").primaryKey(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull(),
+  planType: mysqlEnum("plan_type", ["weekly", "monthly"]).notNull(),
+  amount: int("amount").notNull(),
+  status: mysqlEnum("status", ["booked", "paid", "active", "completed", "cancelled"]).notNull().default("booked"),
+  notes: varchar("notes", { length: 255 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const adminAuditLogs = mysqlTable("admin_audit_logs", {
+  id: serial("id").primaryKey(),
+  actorTag: varchar("actor_tag", { length: 32 }).notNull(),
+  action: varchar("action", { length: 64 }).notNull(),
+  entityType: varchar("entity_type", { length: 64 }).notNull(),
+  entityId: varchar("entity_id", { length: 64 }).notNull(),
+  beforeState: text("before_state"),
+  afterState: text("after_state"),
+  meta: text("meta"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

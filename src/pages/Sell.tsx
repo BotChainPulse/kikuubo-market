@@ -17,6 +17,8 @@ export default function Sell() {
     shop: '', name: '', phone: '', email: '',
     idType: 'National ID', idNumber: '', idFile: '', district: '', landmark: '', tin: '',
     payout: 'MTN MoMo', payoutNumber: '',
+    commissionTermsAccepted: false,
+    sellerContractAccepted: false,
   })
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const register = trpc.sellers.register.useMutation()
@@ -28,6 +30,8 @@ export default function Sell() {
       email: form.email || undefined, idType: form.idType, idNumber: form.idNumber,
       idPhotoName: form.idFile, district: form.district, landmark: form.landmark,
       tin: form.tin || undefined, payoutMethod: form.payout, payoutNumber: form.payoutNumber,
+      commissionTermsAccepted: form.commissionTermsAccepted,
+      sellerContractAccepted: form.sellerContractAccepted,
     })
     setSubmitted(true)
   }
@@ -35,8 +39,8 @@ export default function Sell() {
   const stepValid = [
     form.shop && form.name && form.phone,
     form.idNumber && form.idFile && form.district,
-    form.payoutNumber,
-    true,
+    form.payoutNumber && form.commissionTermsAccepted,
+    form.sellerContractAccepted,
   ][step]
 
   return (
@@ -71,6 +75,34 @@ export default function Sell() {
                 <p className="text-sm text-neutral-400 mt-1">{d}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Seller ads plans */}
+      <section className="mx-auto max-w-6xl px-4 mt-8">
+        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: ORANGE }}>Seller Advertising</p>
+              <h2 className="text-lg sm:text-xl font-extrabold mt-1">Run weekly or monthly ads for your shop</h2>
+              <p className="text-sm text-neutral-600 mt-1">Need faster sales? Promote top products on UG Souq banners and category spots.</p>
+            </div>
+            <a href={WA_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold text-white" style={{ background: ORANGE }}>
+              <MessageCircle size={15} /> Book seller ad
+            </a>
+          </div>
+          <div className="mt-4 grid sm:grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl border border-neutral-200 p-4">
+              <p className="font-bold text-sm">Weekly Ad Plan</p>
+              <p className="text-2xl font-extrabold mt-1" style={{ color: ORANGE }}>UGX 25,000</p>
+              <p className="text-xs text-neutral-600 mt-1">7 days promo, one product category placement, weekly insights.</p>
+            </div>
+            <div className="bg-white rounded-xl border border-neutral-200 p-4">
+              <p className="font-bold text-sm">Monthly Ad Plan</p>
+              <p className="text-2xl font-extrabold mt-1" style={{ color: ORANGE }}>UGX 50,000</p>
+              <p className="text-xs text-neutral-600 mt-1">30 days promo, broader placement, refresh + monthly performance report.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -184,6 +216,15 @@ export default function Sell() {
                   ))}
                 </div>
                 <Field label={`${form.payout} number *`} value={form.payoutNumber} onChange={(v) => set('payoutNumber', v)} placeholder="07XX XXX XXX" />
+                <label className="flex items-start gap-2.5 text-sm text-neutral-600">
+                  <input
+                    type="checkbox"
+                    checked={form.commissionTermsAccepted}
+                    onChange={(e) => setForm((f) => ({ ...f, commissionTermsAccepted: e.target.checked }))}
+                    className="mt-1 accent-orange-600"
+                  />
+                  I agree to UG Souq seller commission terms as stipulated by the platform.
+                </label>
               </div>
             )}
 
@@ -201,8 +242,13 @@ export default function Sell() {
                   ))}
                 </div>
                 <label className="flex items-start gap-2.5 text-sm text-neutral-600">
-                  <input type="checkbox" className="mt-1 accent-orange-600" />
-                  I confirm the details are correct and agree to the Seller Terms, including UG Souq's verification and buyer-protection policies.
+                  <input
+                    type="checkbox"
+                    checked={form.sellerContractAccepted}
+                    onChange={(e) => setForm((f) => ({ ...f, sellerContractAccepted: e.target.checked }))}
+                    className="mt-1 accent-orange-600"
+                  />
+                  I confirm the details are correct and agree to the Seller Contract, verification policy, buyer protection policy, and anti-fraud rules.
                 </label>
               </div>
             )}

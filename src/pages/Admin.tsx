@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { ShieldCheck, Store, Package, Users, LayoutDashboard, LogOut, Check, X, ChevronDown, ClipboardList, Wallet, Download, Banknote } from 'lucide-react'
+import { ShieldCheck, Store, Package, Users, LayoutDashboard, LogOut, Check, X, ChevronDown, ClipboardList, Wallet, Download, Banknote, Bike, Megaphone, ScrollText } from 'lucide-react'
 import { trpc } from '../providers/trpc'
 import { fmt } from '../lib/cart'
 import { paymentLabel } from '../lib/payStatus'
@@ -8,11 +8,31 @@ import { ORANGE } from '../lib/site'
 import PayoutPanel from '../components/admin/PayoutPanel'
 
 const KEY_STORAGE = 'ugsouq_admin_key'
-const ORDER_STATUSES = ['placed', 'confirmed', 'on_the_way', 'delivered', 'cancelled'] as const
+const ORDER_STATUSES = ['placed', 'confirmed', 'pending_delivery', 'on_the_way', 'delivered', 'cancelled'] as const
 const STATUS_LABEL: Record<string, string> = {
-  placed: 'Placed', confirmed: 'Confirmed', on_the_way: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled',
+  placed: 'Placed', confirmed: 'Confirmed', pending_delivery: 'Pending delivery', on_the_way: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled',
 }
-type Tab = 'overview' | 'sellers' | 'listings' | 'orders' | 'accounts' | 'affiliates' | 'payouts'
+type Tab = 'overview' | 'sellers' | 'listings' | 'orders' | 'accounts' | 'affiliates' | 'payouts' | 'delivery' | 'ads' | 'audit'
+type DeliveryStatus = 'pending' | 'approved' | 'rejected'
+type AdStatus = 'booked' | 'paid' | 'active' | 'completed' | 'cancelled'
+
+function QueryError({ title, error, onRetry }: { title: string; error: string; onRetry?: () => void }) {
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+      <p className="font-bold text-red-700">{title}</p>
+      <p className="mt-1 text-sm text-red-700">{error}</p>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="mt-3 text-xs font-bold text-white px-3 py-2 rounded-lg"
+          style={{ background: ORANGE }}
+        >
+          Retry
+        </button>
+      )}
+    </div>
+  )
+}
 
 export default function Admin() {
   const [key, setKey] = useState(() => sessionStorage.getItem(KEY_STORAGE) ?? '')
@@ -79,7 +99,18 @@ export default function Admin() {
           </div>
         </div>
         <div className="mx-auto max-w-7xl px-4 flex gap-1 text-sm">
-          {([['overview', LayoutDashboard, 'Overview'], ['sellers', Store, 'Sellers'], ['listings', ClipboardList, 'Listings'], ['orders', Package, 'Orders'], ['accounts', Wallet, 'Accounts'], ['affiliates', Users, 'Affiliates'], ['payouts', Banknote, 'Payouts']] as const).map(([t, Icon, label]) => (
+          {([
+            ['overview', LayoutDashboard, 'Overview'],
+            ['sellers', Store, 'Sellers'],
+            ['listings', ClipboardList, 'Listings'],
+            ['orders', Package, 'Orders'],
+            ['accounts', Wallet, 'Accounts'],
+            ['payouts', Banknote, 'Payouts'],
+            ['delivery', Bike, 'Delivery'],
+            ['ads', Megaphone, 'Seller Ads'],
+            ['audit', ScrollText, 'Audit Log'],
+            ['affiliates', Users, 'Affiliates'],
+          ] as const).map(([t, Icon, label]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -98,14 +129,175 @@ export default function Admin() {
         {tab === 'accounts' && <Accounts adminKey={key} />}
         {tab === 'affiliates' && <Affiliates adminKey={key} />}
         {tab === 'payouts' && <PayoutPanel adminKey={key} />}
+        {tab === 'delivery' && <DeliveryPartners adminKey={key} />}
+        {tab === 'ads' && <SellerAds adminKey={key} />}
+        {tab === 'audit' && <AuditLog adminKey={key} />}
       </main>
     </div>
   )
 }
 
+function DeliveryPartners({ adminKey }: { adminKey: string }) {
+  const utils = trpc.useUtils()
+  const { data, isLoading, isError, error, refetch } = trpc.admin.deliveryPartners.useQuery({ key: adminKey }, { retry: false })
+  const setStatus = trpc.admin.setDeliveryPartnerStatus.useMutation({
+    onSuccess: () => { utils.admin.deliveryPartners.invalidate(); utils.admin.auditLog.invalidate() },
+  })
+
+  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isError) return <QueryError title="Could not load delivery partners" error={error.message} onRetry={refetch} />
+  if (!data) return <QueryError title="Could not load delivery partners" error="No response from server." onRetry={refetch} />
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="bg-white rounded-xl border border-neutral-200 p-4"><p className="text-xs text-neutral-500">Delivery fees (booked)</p><p className="mt-1 font-extrabold text-lg">{fmt(data.ledger.deliveryFeesBooked)}</p></div>
+        <div className="bg-white rounded-xl border border-neutral-200 p-4"><p className="text-xs text-neutral-500">Delivery fees (realized)</p><p className="mt-1 font-extrabold text-lg">{fmt(data.ledger.deliveryFeesRealized)}</p></div>
+        <div className="bg-white rounded-xl border border-neutral-200 p-4"><p className="text-xs text-neutral-500">Platform 10% (booked)</p><p className="mt-1 font-extrabold text-lg text-sky-700">{fmt(data.ledger.platform10Booked)}</p></div>
+        <div className="bg-white rounded-xl border border-neutral-200 p-4"><p className="text-xs text-neutral-500">Platform 10% (realized)</p><p className="mt-1 font-extrabold text-lg text-sky-700">{fmt(data.ledger.platform10Realized)}</p></div>
+        <div className="bg-white rounded-xl border border-neutral-200 p-4"><p className="text-xs text-neutral-500">Partner share (booked)</p><p className="mt-1 font-extrabold text-lg text-orange-600">{fmt(data.ledger.partnerShareBooked)}</p></div>
+        <div className="bg-white rounded-xl border border-neutral-200 p-4"><p className="text-xs text-neutral-500">Partner share (realized)</p><p className="mt-1 font-extrabold text-lg text-orange-600">{fmt(data.ledger.partnerShareRealized)}</p></div>
+      </div>
+
+      <div className="space-y-3">
+        {data.partners.map((p) => (
+          <div key={p.id} className="bg-white rounded-xl border border-neutral-200 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold">{p.fullName}</h3>
+                  <StatusPill status={p.status} />
+                </div>
+                <p className="mt-1 text-sm text-neutral-600">{p.phone} · {p.area} · {p.vehicleType.toUpperCase()}</p>
+                <p className="mt-0.5 text-xs text-neutral-500">Payout: {p.payoutMethod} → {p.payoutNumber}</p>
+                <p className="mt-0.5 text-xs text-neutral-500">Contract: {p.contractAccepted ? 'accepted' : 'not accepted'} · Delivery 10% share: {p.deliveryShareAccepted ? 'accepted' : 'not accepted'}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setStatus.mutate({ key: adminKey, id: p.id, status: 'approved' as DeliveryStatus })} disabled={setStatus.isPending} className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold disabled:opacity-50"><Check size={15} /> Approve</button>
+                <button onClick={() => setStatus.mutate({ key: adminKey, id: p.id, status: 'rejected' as DeliveryStatus })} disabled={setStatus.isPending} className="flex items-center gap-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-50"><X size={15} /> Reject</button>
+                <button onClick={() => setStatus.mutate({ key: adminKey, id: p.id, status: 'pending' as DeliveryStatus })} disabled={setStatus.isPending} className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-700 text-sm font-semibold disabled:opacity-50">Pending</button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {data.partners.length === 0 && <p className="text-neutral-500">No delivery partner applications yet.</p>}
+      </div>
+    </div>
+  )
+}
+
+function SellerAds({ adminKey }: { adminKey: string }) {
+  const utils = trpc.useUtils()
+  const { data, isLoading, isError, error, refetch } = trpc.admin.adBookings.useQuery({ key: adminKey }, { retry: false })
+  const setStatus = trpc.admin.setAdBookingStatus.useMutation({
+    onSuccess: () => {
+      utils.admin.adBookings.invalidate()
+      utils.admin.accounts.invalidate()
+      utils.admin.auditLog.invalidate()
+    },
+  })
+
+  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isError) return <QueryError title="Could not load seller ad bookings" error={error.message} onRetry={refetch} />
+  if (!data) return <QueryError title="Could not load seller ad bookings" error="No response from server." onRetry={refetch} />
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white rounded-xl border border-neutral-200 p-4"><p className="text-xs text-neutral-500">Bookings count</p><p className="mt-1 font-extrabold text-lg">{data.totals.count}</p></div>
+        <div className="bg-white rounded-xl border border-neutral-200 p-4"><p className="text-xs text-neutral-500">Ad revenue (booked)</p><p className="mt-1 font-extrabold text-lg text-fuchsia-700">{fmt(data.totals.booked)}</p></div>
+        <div className="bg-white rounded-xl border border-neutral-200 p-4"><p className="text-xs text-neutral-500">Ad revenue (realized)</p><p className="mt-1 font-extrabold text-lg text-fuchsia-700">{fmt(data.totals.realized)}</p></div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-neutral-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-[920px]">
+          <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+            <tr>
+              <th className="px-4 py-2.5">ID</th>
+              <th className="px-4 py-2.5">Seller</th>
+              <th className="px-4 py-2.5">Phone</th>
+              <th className="px-4 py-2.5">Plan</th>
+              <th className="px-4 py-2.5">Amount</th>
+              <th className="px-4 py-2.5">Status</th>
+              <th className="px-4 py-2.5">Booked</th>
+              <th className="px-4 py-2.5">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((r) => (
+              <tr key={r.id} className="border-t border-neutral-100">
+                <td className="px-4 py-2.5 font-semibold">#{r.id}</td>
+                <td className="px-4 py-2.5">{r.sellerName}</td>
+                <td className="px-4 py-2.5 text-neutral-500">{r.sellerPhone}</td>
+                <td className="px-4 py-2.5 capitalize">{r.planType}</td>
+                <td className="px-4 py-2.5 font-semibold text-fuchsia-700">{fmt(r.amount)}</td>
+                <td className="px-4 py-2.5">
+                  <select
+                    value={r.status}
+                    onChange={(e) => setStatus.mutate({ key: adminKey, id: r.id, status: e.target.value as AdStatus })}
+                    className="text-xs rounded-lg border border-neutral-300 px-2 py-1.5 bg-white"
+                  >
+                    {(['booked', 'paid', 'active', 'completed', 'cancelled'] as const).map((st) => <option key={st} value={st}>{st}</option>)}
+                  </select>
+                </td>
+                <td className="px-4 py-2.5 text-neutral-500 whitespace-nowrap">{new Date(r.createdAt).toLocaleString('en-UG')}</td>
+                <td className="px-4 py-2.5 text-neutral-500">{r.notes || '-'}</td>
+              </tr>
+            ))}
+            {data.rows.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-neutral-400">No ad bookings yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function AuditLog({ adminKey }: { adminKey: string }) {
+  const { data, isLoading, isError, error, refetch } = trpc.admin.auditLog.useQuery({ key: adminKey }, { retry: false })
+  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isError) return <QueryError title="Could not load audit logs" error={error.message} onRetry={refetch} />
+  if (!data) return <QueryError title="Could not load audit logs" error="No response from server." onRetry={refetch} />
+
+  return (
+    <div className="bg-white rounded-xl border border-neutral-200 overflow-x-auto">
+      <table className="w-full text-sm min-w-[1040px]">
+        <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+          <tr>
+            <th className="px-4 py-2.5">Time</th>
+            <th className="px-4 py-2.5">Actor</th>
+            <th className="px-4 py-2.5">Action</th>
+            <th className="px-4 py-2.5">Entity</th>
+            <th className="px-4 py-2.5">Before</th>
+            <th className="px-4 py-2.5">After / Meta</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.id} className="border-t border-neutral-100 align-top">
+              <td className="px-4 py-2.5 text-neutral-500 whitespace-nowrap">{new Date(row.createdAt).toLocaleString('en-UG')}</td>
+              <td className="px-4 py-2.5 font-mono text-xs">{row.actorTag}</td>
+              <td className="px-4 py-2.5 font-semibold">{row.action}</td>
+              <td className="px-4 py-2.5 text-neutral-500">{row.entityType} #{row.entityId}</td>
+              <td className="px-4 py-2.5">
+                <pre className="text-[10px] whitespace-pre-wrap bg-neutral-50 rounded p-2 max-h-32 overflow-auto">{row.beforeState ?? '-'}</pre>
+              </td>
+              <td className="px-4 py-2.5">
+                <pre className="text-[10px] whitespace-pre-wrap bg-neutral-50 rounded p-2 max-h-32 overflow-auto">{row.afterState ?? row.meta ?? '-'}</pre>
+              </td>
+            </tr>
+          ))}
+          {data.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-neutral-400">No audit entries yet.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 function Overview({ adminKey }: { adminKey: string }) {
-  const { data, isLoading } = trpc.admin.stats.useQuery({ key: adminKey })
-  if (isLoading || !data) return <p className="text-neutral-500">Loading…</p>
+  const { data, isLoading, isError, error, refetch } = trpc.admin.stats.useQuery({ key: adminKey }, { retry: false })
+  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isError) return <QueryError title="Could not load overview" error={error.message} onRetry={refetch} />
+  if (!data) return <QueryError title="Could not load overview" error="No response from server." onRetry={refetch} />
   const cards = [
     ['Revenue (active orders)', fmt(data.revenue)],
     ['Orders', String(data.orderCount)],
@@ -140,11 +332,13 @@ function Overview({ adminKey }: { adminKey: string }) {
 
 function Sellers({ adminKey }: { adminKey: string }) {
   const utils = trpc.useUtils()
-  const { data, isLoading } = trpc.admin.sellers.useQuery({ key: adminKey })
+  const { data, isLoading, isError, error, refetch } = trpc.admin.sellers.useQuery({ key: adminKey }, { retry: false })
   const setStatus = trpc.admin.setSellerStatus.useMutation({
     onSuccess: () => { utils.admin.sellers.invalidate(); utils.admin.stats.invalidate() },
   })
-  if (isLoading || !data) return <p className="text-neutral-500">Loading…</p>
+  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isError) return <QueryError title="Could not load sellers" error={error.message} onRetry={refetch} />
+  if (!data) return <QueryError title="Could not load sellers" error="No response from server." onRetry={refetch} />
   return (
     <div className="space-y-3">
       {data.map((s) => (
@@ -163,6 +357,9 @@ function Sellers({ adminKey }: { adminKey: string }) {
                 {s.idType}: {s.idNumber} (photo: {s.idPhotoName}) · {s.district}, {s.landmark}{s.tin ? ` · TIN ${s.tin}` : ''}
               </p>
               <p className="mt-0.5 text-xs text-neutral-500">Payout: {s.payoutMethod} → {s.payoutNumber}</p>
+              <p className="mt-0.5 text-xs text-neutral-500">
+                Contracts: seller {s.sellerContractAccepted ? 'accepted' : 'not accepted'} · commission {s.commissionTermsAccepted ? 'accepted' : 'not accepted'}
+              </p>
             </div>
             {s.status === 'pending' ? (
               <div className="flex gap-2">
@@ -198,11 +395,13 @@ function Sellers({ adminKey }: { adminKey: string }) {
 
 function Listings({ adminKey }: { adminKey: string }) {
   const utils = trpc.useUtils()
-  const { data, isLoading } = trpc.admin.listings.useQuery({ key: adminKey })
+  const { data, isLoading, isError, error, refetch } = trpc.admin.listings.useQuery({ key: adminKey }, { retry: false })
   const setStatus = trpc.admin.setListingStatus.useMutation({
     onSuccess: () => { utils.admin.listings.invalidate(); utils.admin.stats.invalidate() },
   })
-  if (isLoading || !data) return <p className="text-neutral-500">Loading…</p>
+  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isError) return <QueryError title="Could not load listings" error={error.message} onRetry={refetch} />
+  if (!data) return <QueryError title="Could not load listings" error="No response from server." onRetry={refetch} />
   if (data.length === 0) return <p className="text-neutral-500">No seller listings yet.</p>
   return (
     <div className="space-y-3">
@@ -261,6 +460,7 @@ function StatusPill({ status }: { status: string }) {
     rejected: 'bg-red-100 text-red-700',
     placed: 'bg-amber-100 text-amber-700',
     confirmed: 'bg-blue-100 text-blue-700',
+    pending_delivery: 'bg-fuchsia-100 text-fuchsia-700',
     on_the_way: 'bg-purple-100 text-purple-700',
     delivered: 'bg-green-100 text-green-700',
     cancelled: 'bg-red-100 text-red-700',
@@ -274,7 +474,7 @@ function StatusPill({ status }: { status: string }) {
 
 function Orders({ adminKey }: { adminKey: string }) {
   const utils = trpc.useUtils()
-  const { data, isLoading } = trpc.admin.orders.useQuery({ key: adminKey })
+  const { data, isLoading, isError, error, refetch } = trpc.admin.orders.useQuery({ key: adminKey }, { retry: false })
   const setStatus = trpc.admin.setOrderStatus.useMutation({
     onSuccess: () => { utils.admin.orders.invalidate(); utils.admin.stats.invalidate() },
   })
@@ -282,7 +482,9 @@ function Orders({ adminKey }: { adminKey: string }) {
     onSuccess: () => { utils.admin.orders.invalidate(); utils.admin.stats.invalidate() },
   })
   const [openId, setOpenId] = useState<number | null>(null)
-  if (isLoading || !data) return <p className="text-neutral-500">Loading…</p>
+  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isError) return <QueryError title="Could not load orders" error={error.message} onRetry={refetch} />
+  if (!data) return <QueryError title="Could not load orders" error="No response from server." onRetry={refetch} />
   if (data.length === 0) return <p className="text-neutral-500">No orders yet.</p>
   return (
     <div className="space-y-3">
@@ -350,9 +552,26 @@ function Orders({ adminKey }: { adminKey: string }) {
 }
 
 function Accounts({ adminKey }: { adminKey: string }) {
-  const { data, isLoading } = trpc.admin.accounts.useQuery({ key: adminKey })
-  if (isLoading || !data) return <p className="text-neutral-500">Loading…</p>
+  const { data, isLoading, isError, error, refetch } = trpc.admin.accounts.useQuery({ key: adminKey }, { retry: false })
+  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isError) return <QueryError title="Could not load accounts" error={error.message} onRetry={refetch} />
+  if (!data) return <QueryError title="Could not load accounts" error="No response from server." onRetry={refetch} />
   const t = data.totals
+
+  const paidEntries = data.entries.filter((e) => e.paymentStatus === 'paid' && e.status !== 'cancelled')
+  const commissionByDay = paidEntries.reduce<Record<string, number>>((acc, e) => {
+    const day = new Date(e.date).toISOString().slice(0, 10)
+    acc[day] = (acc[day] ?? 0) + e.commission
+    return acc
+  }, {})
+  const commissionByMonth = paidEntries.reduce<Record<string, number>>((acc, e) => {
+    const d = new Date(e.date)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    acc[key] = (acc[key] ?? 0) + e.commission
+    return acc
+  }, {})
+  const dailyRows = Object.entries(commissionByDay).sort((a, b) => (a[0] < b[0] ? 1 : -1))
+  const monthlyRows = Object.entries(commissionByMonth).sort((a, b) => (a[0] < b[0] ? 1 : -1))
 
   const exportCsv = () => {
     const header = ['Order code', 'Date', 'Customer', 'Payment method', 'Payment status', 'Order status', 'Sale subtotal', 'Delivery fee', 'UG Souq commission', 'Seller payout', 'Order total']
@@ -380,8 +599,15 @@ function Accounts({ adminKey }: { adminKey: string }) {
 
   const cards: [string, number, string?][] = [
     ['Product sales', t.sales],
-    ['UG Souq commission earned', t.commissionEarned, 'text-emerald-700'],
+    ['Commission (booked)', t.commissionBooked ?? t.commissionEarned, 'text-emerald-700'],
+    ['Commission (realized)', t.commissionRealized ?? 0, 'text-emerald-700'],
     ['Delivery fees collected', t.deliveryFees],
+    ['Delivery income 10% (booked)', t.deliveryIncome10pctBooked ?? 0, 'text-sky-700'],
+    ['Delivery income 10% (realized)', t.deliveryIncome10pctRealized ?? 0, 'text-sky-700'],
+    ['Seller ad revenue (booked)', t.adRevenueBooked ?? 0, 'text-fuchsia-700'],
+    ['Seller ad revenue (realized)', t.adRevenueRealized ?? 0, 'text-fuchsia-700'],
+    ['Gross platform income (booked)', t.grossPlatformIncomeBooked ?? 0, 'text-emerald-700'],
+    ['Gross platform income (realized)', t.grossPlatformIncomeRealized ?? 0, 'text-emerald-700'],
     ['Seller payouts owed', t.sellerPayoutsOwed, 'text-orange-600'],
     ['Received from buyers', t.receivedFromBuyers, 'text-emerald-700'],
     ['Awaiting buyer payment', t.awaitingBuyerPayment, 'text-red-600'],
@@ -405,6 +631,87 @@ function Accounts({ adminKey }: { adminKey: string }) {
             <p className={`mt-1.5 font-extrabold text-sm sm:text-base ${cls ?? ''}`}>{fmt(value)}</p>
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-xl border border-neutral-200 overflow-x-auto">
+        <div className="px-4 py-3 border-b border-neutral-100">
+          <h3 className="font-bold text-sm">Income Streams Audit View</h3>
+          <p className="text-xs text-neutral-500 mt-0.5">Booked vs realized values reduce loopholes and make reconciliation transparent.</p>
+        </div>
+        <table className="w-full text-sm min-w-[700px]">
+          <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+            <tr>
+              <th className="px-4 py-2.5">Stream</th>
+              <th className="px-4 py-2.5">Rule</th>
+              <th className="px-4 py-2.5 text-emerald-700">Booked</th>
+              <th className="px-4 py-2.5 text-emerald-700">Realized</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data.incomeStreams ?? []).map((s, i) => (
+              <tr key={`${s.stream}-${i}`} className="border-t border-neutral-100">
+                <td className="px-4 py-2.5 font-semibold">{s.stream}</td>
+                <td className="px-4 py-2.5 text-neutral-500">{s.rule}</td>
+                <td className="px-4 py-2.5 font-semibold text-emerald-700">{fmt(s.booked)}</td>
+                <td className="px-4 py-2.5 font-semibold text-emerald-700">{fmt(s.realized)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-neutral-100">
+            <h3 className="font-bold text-sm">Commission Income by Day</h3>
+            <p className="text-xs text-neutral-500 mt-0.5">Only paid orders are counted as real income.</p>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+              <tr>
+                <th className="px-4 py-2">Day</th>
+                <th className="px-4 py-2 text-emerald-700">Commission</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dailyRows.map(([day, amount]) => (
+                <tr key={day} className="border-t border-neutral-100">
+                  <td className="px-4 py-2.5">{day}</td>
+                  <td className="px-4 py-2.5 font-semibold text-emerald-700">{fmt(amount)}</td>
+                </tr>
+              ))}
+              {dailyRows.length === 0 && (
+                <tr><td colSpan={2} className="px-4 py-6 text-center text-neutral-400">No paid commission income yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-neutral-100">
+            <h3 className="font-bold text-sm">Commission Income by Month</h3>
+            <p className="text-xs text-neutral-500 mt-0.5">Useful for weekly/monthly finance reconciliation.</p>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+              <tr>
+                <th className="px-4 py-2">Month</th>
+                <th className="px-4 py-2 text-emerald-700">Commission</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyRows.map(([month, amount]) => (
+                <tr key={month} className="border-t border-neutral-100">
+                  <td className="px-4 py-2.5">{month}</td>
+                  <td className="px-4 py-2.5 font-semibold text-emerald-700">{fmt(amount)}</td>
+                </tr>
+              ))}
+              {monthlyRows.length === 0 && (
+                <tr><td colSpan={2} className="px-4 py-6 text-center text-neutral-400">No paid commission income yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-neutral-200 overflow-x-auto">
@@ -451,8 +758,10 @@ function Accounts({ adminKey }: { adminKey: string }) {
 }
 
 function Affiliates({ adminKey }: { adminKey: string }) {
-  const { data, isLoading } = trpc.admin.affiliates.useQuery({ key: adminKey })
-  if (isLoading || !data) return <p className="text-neutral-500">Loading…</p>
+  const { data, isLoading, isError, error, refetch } = trpc.admin.affiliates.useQuery({ key: adminKey }, { retry: false })
+  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isError) return <QueryError title="Could not load affiliates" error={error.message} onRetry={refetch} />
+  if (!data) return <QueryError title="Could not load affiliates" error="No response from server." onRetry={refetch} />
   if (data.length === 0) return <p className="text-neutral-500">No affiliates yet.</p>
   return (
     <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">

@@ -15,6 +15,10 @@ const TABLES = [
     \`email\` varchar(255), \`id_type\` varchar(64), \`id_number\` varchar(64), \`id_photo_name\` varchar(255),
     \`district\` varchar(64), \`landmark\` varchar(255), \`tin\` varchar(32),
     \`payout_method\` varchar(32), \`payout_number\` varchar(32),
+    \`commission_terms_accepted\` boolean NOT NULL DEFAULT false,
+    \`seller_contract_accepted\` boolean NOT NULL DEFAULT false,
+    \`commission_terms_accepted_at\` timestamp NULL,
+    \`seller_contract_accepted_at\` timestamp NULL,
     \`verified\` boolean NOT NULL DEFAULT false, \`rating\` int NOT NULL DEFAULT 45,
     \`status\` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -56,7 +60,7 @@ const TABLES = [
     \`code\` varchar(16) NOT NULL, \`customer_name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL,
     \`address\` text NOT NULL, \`payment_method\` enum('mtn_momo','airtel_money','cash') NOT NULL,
     \`subtotal\` int NOT NULL, \`delivery_fee\` int NOT NULL DEFAULT 0, \`total\` int NOT NULL,
-    \`status\` enum('placed','confirmed','on_the_way','delivered','cancelled') NOT NULL DEFAULT 'placed',
+    \`status\` enum('placed','confirmed','pending_delivery','on_the_way','delivered','cancelled') NOT NULL DEFAULT 'placed',
     \`payment_status\` enum('unpaid','pending_confirmation','paid') NOT NULL DEFAULT 'unpaid',
     \`payment_ref\` varchar(64) NULL,
     \`commission_fee\` int NOT NULL DEFAULT 0,
@@ -80,6 +84,37 @@ const TABLES = [
     \`name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL, \`channel\` varchar(64) NOT NULL,
     \`code\` varchar(16) NOT NULL, \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS delivery_partners (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`full_name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL,
+    \`area\` varchar(128) NOT NULL, \`vehicle_type\` varchar(64) NOT NULL,
+    \`payout_method\` varchar(32) NOT NULL, \`payout_number\` varchar(32) NOT NULL,
+    \`contract_accepted\` boolean NOT NULL DEFAULT false,
+    \`delivery_share_accepted\` boolean NOT NULL DEFAULT false,
+    \`contract_accepted_at\` timestamp NULL,
+    \`status\` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS seller_ad_bookings (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`seller_id\` bigint unsigned NOT NULL,
+    \`plan_type\` enum('weekly','monthly') NOT NULL,
+    \`amount\` int NOT NULL,
+    \`status\` enum('booked','paid','active','completed','cancelled') NOT NULL DEFAULT 'booked',
+    \`notes\` varchar(255) NULL,
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS admin_audit_logs (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`actor_tag\` varchar(32) NOT NULL,
+    \`action\` varchar(64) NOT NULL,
+    \`entity_type\` varchar(64) NOT NULL,
+    \`entity_id\` varchar(64) NOT NULL,
+    \`before_state\` text NULL,
+    \`after_state\` text NULL,
+    \`meta\` text NULL,
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
 ];
 
 // Column upgrades for existing tables (ignored when the column already exists)
@@ -89,6 +124,11 @@ const ALTERS = [
   "ALTER TABLE orders ADD COLUMN \`commission_fee\` int NOT NULL DEFAULT 0",
   "ALTER TABLE orders ADD COLUMN \`paid_out\` boolean NOT NULL DEFAULT false",
   "ALTER TABLE orders ADD COLUMN \`payout_ref\` varchar(64) NULL",
+  "ALTER TABLE orders MODIFY COLUMN \`status\` enum('placed','confirmed','pending_delivery','on_the_way','delivered','cancelled') NOT NULL DEFAULT 'placed'",
+  "ALTER TABLE sellers ADD COLUMN \`commission_terms_accepted\` boolean NOT NULL DEFAULT false",
+  "ALTER TABLE sellers ADD COLUMN \`seller_contract_accepted\` boolean NOT NULL DEFAULT false",
+  "ALTER TABLE sellers ADD COLUMN \`commission_terms_accepted_at\` timestamp NULL",
+  "ALTER TABLE sellers ADD COLUMN \`seller_contract_accepted_at\` timestamp NULL",
   "UPDATE orders SET commission_fee = ROUND(subtotal * 0.07) WHERE commission_fee = 0 AND subtotal > 0",
 ];
 

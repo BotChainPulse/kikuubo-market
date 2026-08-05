@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, desc, asc, like, or } from "drizzle-orm";
 import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
-import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers } from "../db/schema";
+import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings } from "../db/schema";
 import { adminRouter } from "./admin";
 import { bootstrapRouter } from "./bootstrap";
 
@@ -256,10 +256,22 @@ export const appRouter = createRouter({
         tin: z.string().optional(),
         payoutMethod: z.string(),
         payoutNumber: z.string().min(9),
+        commissionTermsAccepted: z.boolean(),
+        sellerContractAccepted: z.boolean(),
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
-        const [row] = await db.insert(sellers).values({ ...input, status: "pending" }).$returningId();
+        if (!input.commissionTermsAccepted || !input.sellerContractAccepted) {
+          throw new Error("You must accept seller contract and commission terms.");
+        }
+        const [row] = await db.insert(sellers).values({
+          ...input,
+          status: "pending",
+          commissionTermsAccepted: true,
+          sellerContractAccepted: true,
+          commissionTermsAcceptedAt: new Date(),
+          sellerContractAcceptedAt: new Date(),
+        }).$returningId();
         return { id: row.id };
       }),
     lookup: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
@@ -299,6 +311,61 @@ export const appRouter = createRouter({
           warrantyMonths: input.condition === "new" ? 0 : input.warrantyMonths,
           imageNote: input.imageNote ?? "Photo uploaded by seller",
           imageData: input.imageData,
+          status: "pending",
+        }).$returningId();
+        return { id: row.id };
+      }),
+    bookAd: publicQuery
+      .input(z.object({
+        phone: z.string().min(9),
+        planType: z.enum(["weekly", "monthly"]),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = getDb();
+        const [seller] = await db.select().from(sellers).where(eq(sellers.phone, input.phone.trim()));
+        if (!seller) throw new Error("No shop registered with this phone number. Register your shop first.");
+
+        const amount = input.planType === "weekly" ? 25000 : 50000;
+        const [row] = await db.insert(sellerAdBookings).values({
+          sellerId: seller.id,
+          planType: input.planType,
+          amount,
+          status: "booked",
+          notes: input.notes ?? "Seller ad plan booking",
+        }).$returningId();
+        return { id: row.id, amount };
+      }),
+  }),
+
+  delivery: createRouter({
+    registerPartner: publicQuery
+      .input(z.object({
+        fullName: z.string().min(2),
+        phone: z.string().min(9),
+        area: z.string().min(2),
+        vehicleType: z.enum(["boda", "car", "van", "truck"]),
+        payoutMethod: z.enum(["mtn_momo", "airtel_money"]),
+        payoutNumber: z.string().min(9),
+        contractAccepted: z.boolean(),
+        deliveryShareAccepted: z.boolean(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = getDb();
+        if (!input.contractAccepted || !input.deliveryShareAccepted) {
+          throw new Error("You must accept delivery contract and 10% platform share terms.");
+        }
+
+        const [row] = await db.insert(deliveryPartners).values({
+          fullName: input.fullName,
+          phone: normPhone(input.phone),
+          area: input.area,
+          vehicleType: input.vehicleType,
+          payoutMethod: input.payoutMethod,
+          payoutNumber: normPhone(input.payoutNumber),
+          contractAccepted: true,
+          deliveryShareAccepted: true,
+          contractAcceptedAt: new Date(),
           status: "pending",
         }).$returningId();
         return { id: row.id };

@@ -11,7 +11,7 @@ import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
-import { ORANGE } from '../lib/site'
+import { ORANGE, WA_LINK } from '../lib/site'
 import { categoryName } from '../lib/categories'
 
 const services = [
@@ -126,6 +126,35 @@ export default function HomePage() {
             </div>
           </div>
           <Link to="/verification" className="sm:ml-auto text-xs font-bold text-sky-700 bg-white border border-sky-200 px-4 py-2 rounded-full hover:bg-sky-100 transition-colors whitespace-nowrap">How verification works →</Link>
+        </div>
+      </section>
+
+      {/* Seller ads banner */}
+      <section className="mx-auto max-w-7xl px-4 mt-6">
+        <div className="bg-neutral-900 text-white rounded-2xl p-6 sm:p-7 border border-neutral-700">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-orange-300 font-bold">Seller Ads</p>
+              <h3 className="mt-1 text-xl font-extrabold">Promote your shop on UG Souq</h3>
+              <p className="mt-2 text-sm text-neutral-300 max-w-2xl">Boost visibility on home sections and category feeds. Pick a weekly or monthly ad package and our team activates your campaign.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/sell" className="px-4 py-2 rounded-full text-sm font-bold text-white" style={{ background: ORANGE }}>Start seller profile</Link>
+              <a href={WA_LINK} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-full text-sm font-bold border border-neutral-500 hover:border-neutral-300">Book ad via WhatsApp</a>
+            </div>
+          </div>
+          <div className="mt-5 grid sm:grid-cols-2 gap-4">
+            <div className="rounded-xl bg-neutral-800 border border-neutral-700 p-4">
+              <p className="text-sm font-bold">Weekly Seller Ad</p>
+              <p className="text-2xl font-extrabold mt-1" style={{ color: ORANGE }}>UGX 25,000</p>
+              <p className="text-xs text-neutral-300 mt-2">7 days visibility, one category boost, weekly performance summary.</p>
+            </div>
+            <div className="rounded-xl bg-neutral-800 border border-neutral-700 p-4">
+              <p className="text-sm font-bold">Monthly Seller Ad</p>
+              <p className="text-2xl font-extrabold mt-1" style={{ color: ORANGE }}>UGX 50,000</p>
+              <p className="text-xs text-neutral-300 mt-2">30 days visibility, priority placement, creative refresh support, monthly report.</p>
+            </div>
+          </div>
         </div>
       </section>
 
