@@ -5,6 +5,7 @@ import { getDb } from "./queries/connection";
 import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings } from "../db/schema";
 import { adminRouter } from "./admin";
 import { bootstrapRouter } from "./bootstrap";
+import { migrateRouter } from "./migrate";
 
 function orderCode() {
   // Unambiguous alphabet: no O/0, I/1, L — buyers type these codes by hand
@@ -33,6 +34,7 @@ export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
   admin: adminRouter,
   bootstrap: bootstrapRouter,
+  migrate: migrateRouter,
 
   products: createRouter({
     flashSale: publicQuery.query(async () => {
