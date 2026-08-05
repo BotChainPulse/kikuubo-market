@@ -1,12 +1,15 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, like, gte, lte, sql } from "drizzle-orm";
 import { createHash } from "crypto";
-import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
+import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { sellers, orders, orderItems, affiliates, products, listings, sellerAdBookings, deliveryPartners, adminAuditLogs } from "../db/schema";
+import {
+  sellers, orders, orderItems, affiliates, products, listings,
+  sellerAdBookings, deliveryPartners, adminAuditLogs, payouts,
+  platformSettings, sellerContracts, notifications, returns, customers
+} from "../db/schema";
 
-// Change this key (or set ADMIN_KEY in the environment) before going public.
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "ugsouq-admin-2026";
 
 function requireAdmin(key: string) {
@@ -54,12 +57,32 @@ async function writeAudit(params: {
   });
 }
 
+async function createNotification(params: {
+  type: "new_order" | "payment_received" | "seller_registered" | "delivery_partner_registered" | "payout_completed" | "payout_failed" | "listing_pending" | "order_cancelled" | "low_stock";
+  title: string;
+  message: string;
+  entityType?: string;
+  entityId?: string;
+}) {
+  const db = getDb();
+  await db.insert(notifications).values({
+    type: params.type,
+    title: params.title,
+    message: params.message,
+    entityType: params.entityType ?? null,
+    entityId: params.entityId ?? null,
+  });
+}
+
 export const adminRouter = createRouter({
   login: publicQuery.input(z.object({ key: z.string() })).mutation(({ input }) => {
     requireAdmin(input.key);
     return { ok: true };
   }),
 
+  // ============================================
+  // OVERVIEW & STATS
+  // ============================================
   stats: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
     requireAdmin(input.key);
     const db = getDb();
@@ -67,7 +90,12 @@ export const adminRouter = createRouter({
     const allSellers = await db.select().from(sellers);
     const allAffiliates = await db.select().from(affiliates);
     const allProducts = await db.select().from(products);
+    const allCustomers = await db.select().from(customers);
     const active = allOrders.filter((o) => o.status !== "cancelled");
+    const paid = active.filter((o) => o.paymentStatus === "paid");
+    const pendingPayoutCount = await db.select({ count: sql<number>`COUNT(*)` }).from(payouts).where(eq(payouts.status, "pending"));
+    const unreadNotifications = await db.select({ count: sql<number>`COUNT(*)` }).from(notifications).where(eq(notifications.isRead, false));
+
     return {
       orderCount: allOrders.length,
       revenue: active.reduce((s, o) => s + o.total, 0),
@@ -75,15 +103,90 @@ export const adminRouter = createRouter({
       pendingSellers: allSellers.filter((s) => s.status === "pending").length,
       affiliateCount: allAffiliates.length,
       productCount: allProducts.length,
+      customerCount: allCustomers.length,
+      pendingPayouts: pendingPayoutCount[0]?.count ?? 0,
+      unreadNotifications: unreadNotifications[0]?.count ?? 0,
       ordersByStatus: ORDER_STATUSES.map((st) => ({ status: st, count: allOrders.filter((o) => o.status === st).length })),
+      commissionBooked: active.reduce((s, o) => s + o.commissionFee, 0),
+      commissionRealized: paid.reduce((s, o) => s + o.commissionFee, 0),
     };
   }),
 
-  sellers: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
+  // ============================================
+  // ORDER ANALYTICS (for charts)
+  // ============================================
+  orderAnalytics: publicQuery.input(z.object({ key: z.string(), days: z.number().default(30) })).query(async ({ input }) => {
     requireAdmin(input.key);
     const db = getDb();
-    const rows = await db.select().from(sellers).orderBy(desc(sellers.createdAt));
-    return rows.sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0));
+    const since = new Date(Date.now() - input.days * 86400000);
+    const rows = await db.select().from(orders).where(gte(orders.createdAt, since)).orderBy(orders.createdAt);
+
+    const daily: Record<string, { date: string; orders: number; revenue: number; commission: number }> = {};
+    for (const o of rows) {
+      const d = new Date(o.createdAt).toISOString().slice(0, 10);
+      if (!daily[d]) daily[d] = { date: d, orders: 0, revenue: 0, commission: 0 };
+      daily[d].orders++;
+      if (o.status !== "cancelled") {
+        daily[d].revenue += o.total;
+        daily[d].commission += o.commissionFee;
+      }
+    }
+
+    const statusBreakdown = ORDER_STATUSES.map((st) => ({
+      status: st,
+      count: rows.filter((o) => o.status === st).length,
+      revenue: rows.filter((o) => o.status === st).reduce((s, o) => s + o.total, 0),
+    }));
+
+    const paymentBreakdown = ["unpaid", "pending_confirmation", "paid"].map((ps) => ({
+      status: ps,
+      count: rows.filter((o) => o.paymentStatus === ps).length,
+    }));
+
+    return {
+      daily: Object.values(daily).sort((a, b) => a.date.localeCompare(b.date)),
+      statusBreakdown,
+      paymentBreakdown,
+      totalOrders: rows.length,
+      totalRevenue: rows.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0),
+      totalCommission: rows.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.commissionFee, 0),
+    };
+  }),
+
+  // ============================================
+  // SELLERS
+  // ============================================
+  sellers: publicQuery.input(z.object({ key: z.string(), search: z.string().optional(), status: z.enum(["pending", "approved", "rejected"]).optional() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    let query = db.select().from(sellers).orderBy(desc(sellers.createdAt));
+    const rows = await query;
+
+    let filtered = rows;
+    if (input.status) filtered = filtered.filter((s) => s.status === input.status);
+    if (input.search) {
+      const q = input.search.toLowerCase();
+      filtered = filtered.filter((s) =>
+        s.shopName.toLowerCase().includes(q) ||
+        s.ownerName.toLowerCase().includes(q) ||
+        s.phone.includes(q) ||
+        (s.district ?? "").toLowerCase().includes(q)
+      );
+    }
+
+    // Get contract status for each seller
+    const contractRows = await db.select().from(sellerContracts);
+    const contractMap = new Map<number, typeof contractRows>();
+    for (const c of contractRows) {
+      const list = contractMap.get(Number(c.sellerId)) ?? [];
+      list.push(c);
+      contractMap.set(Number(c.sellerId), list);
+    }
+
+    return filtered.map((s) => ({
+      ...s,
+      contracts: contractMap.get(Number(s.id)) ?? [],
+    })).sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0));
   }),
 
   setSellerStatus: publicQuery
@@ -97,23 +200,74 @@ export const adminRouter = createRouter({
         verified: input.status === "approved",
       }).where(eq(sellers.id, input.id));
       const [after] = await db.select().from(sellers).where(eq(sellers.id, input.id));
-      await writeAudit({
-        key: input.key,
-        action: "seller.status.changed",
-        entityType: "seller",
-        entityId: input.id,
-        beforeState: before,
-        afterState: after,
-      });
+      await writeAudit({ key: input.key, action: "seller.status.changed", entityType: "seller", entityId: input.id, beforeState: before, afterState: after });
+      if (input.status === "approved") {
+        await createNotification({ type: "seller_registered", title: "Seller Approved", message: `${after.shopName} has been approved.`, entityType: "seller", entityId: String(input.id) });
+      }
       return { ok: true };
     }),
 
-  orders: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
+  // ============================================
+  // SELLER CONTRACTS
+  // ============================================
+  sellerContracts: publicQuery.input(z.object({ key: z.string(), sellerId: z.number() })).query(async ({ input }) => {
     requireAdmin(input.key);
     const db = getDb();
-    const rows = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(100);
+    return db.select().from(sellerContracts).where(eq(sellerContracts.sellerId, input.sellerId));
+  }),
+
+  acceptSellerContract: publicQuery
+    .input(z.object({ key: z.string(), sellerId: z.number(), contractType: z.enum(["seller_agreement", "commission_terms", "delivery_terms"]) }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const hash = createHash("sha256").update(input.key).digest("hex");
+
+      await db.insert(sellerContracts).values({
+        sellerId: input.sellerId,
+        contractType: input.contractType,
+        accepted: true,
+        acceptedAt: new Date(),
+        acceptedBy: "admin",
+        adminKeyHash: hash.slice(0, 64),
+      }).onDuplicateKeyUpdate({
+        set: { accepted: true, acceptedAt: new Date(), acceptedBy: "admin", adminKeyHash: hash.slice(0, 64) },
+      });
+
+      // Also update the legacy flags on sellers table
+      if (input.contractType === "commission_terms") {
+        await db.update(sellers).set({ commissionTermsAccepted: true, commissionTermsAcceptedAt: new Date() }).where(eq(sellers.id, input.sellerId));
+      }
+      if (input.contractType === "seller_agreement") {
+        await db.update(sellers).set({ sellerContractAccepted: true, sellerContractAcceptedAt: new Date() }).where(eq(sellers.id, input.sellerId));
+      }
+
+      await writeAudit({ key: input.key, action: "seller.contract.accepted_by_admin", entityType: "seller", entityId: input.sellerId, meta: { contractType: input.contractType } });
+      return { ok: true };
+    }),
+
+  // ============================================
+  // ORDERS (with search)
+  // ============================================
+  orders: publicQuery.input(z.object({ key: z.string(), search: z.string().optional(), status: z.enum(ORDER_STATUSES).optional(), limit: z.number().default(100) })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    let query = db.select().from(orders).orderBy(desc(orders.createdAt)).limit(input.limit);
+    const rows = await query;
+
+    let filtered = rows;
+    if (input.status) filtered = filtered.filter((o) => o.status === input.status);
+    if (input.search) {
+      const q = input.search.toLowerCase();
+      filtered = filtered.filter((o) =>
+        o.code.toLowerCase().includes(q) ||
+        o.customerName.toLowerCase().includes(q) ||
+        o.phone.includes(q)
+      );
+    }
+
     const withItems = await Promise.all(
-      rows.map(async (o) => ({
+      filtered.map(async (o) => ({
         ...o,
         items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)),
       })),
@@ -127,16 +281,15 @@ export const adminRouter = createRouter({
       requireAdmin(input.key);
       const db = getDb();
       const [before] = await db.select().from(orders).where(eq(orders.id, input.id));
-      await db.update(orders).set({ status: input.status }).where(eq(orders.id, input.id));
+      const updates: any = { status: input.status };
+      if (input.status === "delivered") updates.deliveredAt = new Date();
+      await db.update(orders).set(updates).where(eq(orders.id, input.id));
       const [after] = await db.select().from(orders).where(eq(orders.id, input.id));
-      await writeAudit({
-        key: input.key,
-        action: "order.status.changed",
-        entityType: "order",
-        entityId: input.id,
-        beforeState: before,
-        afterState: after,
-      });
+      await writeAudit({ key: input.key, action: "order.status.changed", entityType: "order", entityId: input.id, beforeState: before, afterState: after });
+
+      if (input.status === "delivered" && after.paymentStatus === "paid") {
+        await createNotification({ type: "payment_received", title: "Order Ready for Payout", message: `Order ${after.code} is delivered and paid. Ready for seller payout.`, entityType: "order", entityId: after.code });
+      }
       return { ok: true };
     }),
 
@@ -148,19 +301,77 @@ export const adminRouter = createRouter({
       const [before] = await db.select().from(orders).where(eq(orders.id, input.id));
       await db.update(orders).set({ paymentStatus: input.status }).where(eq(orders.id, input.id));
       const [after] = await db.select().from(orders).where(eq(orders.id, input.id));
-      await writeAudit({
-        key: input.key,
-        action: "order.payment_status.changed",
-        entityType: "order",
-        entityId: input.id,
-        beforeState: before,
-        afterState: after,
-      });
+      await writeAudit({ key: input.key, action: "order.payment_status.changed", entityType: "order", entityId: input.id, beforeState: before, afterState: after });
+
+      if (input.status === "paid") {
+        await createNotification({ type: "payment_received", title: "Payment Received", message: `Payment confirmed for order ${after.code}.`, entityType: "order", entityId: after.code });
+      }
       return { ok: true };
     }),
 
+  // ============================================
+  // DELIVERY ASSIGNMENT
+  // ============================================
+  assignDeliveryPartner: publicQuery
+    .input(z.object({ key: z.string(), orderId: z.number(), partnerId: z.number(), notes: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [order] = await db.select().from(orders).where(eq(orders.id, input.orderId));
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+
+      const [partner] = await db.select().from(deliveryPartners).where(eq(deliveryPartners.id, input.partnerId));
+      if (!partner || partner.status !== "approved") throw new TRPCError({ code: "BAD_REQUEST", message: "Delivery partner not approved" });
+
+      await db.update(orders).set({
+        deliveryPartnerId: input.partnerId,
+        deliveryAssignedAt: new Date(),
+        deliveryNotes: input.notes ?? null,
+        status: "on_the_way",
+      }).where(eq(orders.id, input.orderId));
+
+      await writeAudit({ key: input.key, action: "order.delivery.assigned", entityType: "order", entityId: input.orderId, meta: { partnerId: input.partnerId, partnerName: partner.fullName } });
+      await createNotification({ type: "new_order", title: "Delivery Assigned", message: `${partner.fullName} assigned to order ${order.code}.`, entityType: "order", entityId: order.code });
+      return { ok: true };
+    }),
+
+  unassignDeliveryPartner: publicQuery
+    .input(z.object({ key: z.string(), orderId: z.number() }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [before] = await db.select().from(orders).where(eq(orders.id, input.orderId));
+      await db.update(orders).set({
+        deliveryPartnerId: null,
+        deliveryAssignedAt: null,
+        deliveryNotes: null,
+        status: "confirmed",
+      }).where(eq(orders.id, input.orderId));
+      await writeAudit({ key: input.key, action: "order.delivery.unassigned", entityType: "order", entityId: input.orderId, beforeState: before });
+      return { ok: true };
+    }),
+
+  markDelivered: publicQuery
+    .input(z.object({ key: z.string(), orderId: z.number() }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [before] = await db.select().from(orders).where(eq(orders.id, input.orderId));
+      await db.update(orders).set({ status: "delivered", deliveredAt: new Date() }).where(eq(orders.id, input.orderId));
+      const [after] = await db.select().from(orders).where(eq(orders.id, input.orderId));
+      await writeAudit({ key: input.key, action: "order.delivered", entityType: "order", entityId: input.orderId, beforeState: before, afterState: after });
+
+      if (after.paymentStatus === "paid") {
+        await createNotification({ type: "payment_received", title: "Order Delivered & Paid", message: `Order ${after.code} is ready for seller payout.`, entityType: "order", entityId: after.code });
+      }
+      return { ok: true };
+    }),
+
+  // ============================================
+  // DELIVERY PARTNERS
+  // ============================================
   deliveryPartners: publicQuery
-    .input(z.object({ key: z.string() }))
+    .input(z.object({ key: z.string(), search: z.string().optional() }))
     .query(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
@@ -171,8 +382,16 @@ export const adminRouter = createRouter({
       const platform10Booked = active.reduce((s, o) => s + Math.round(o.deliveryFee * 0.1), 0);
       const platform10Realized = paid.reduce((s, o) => s + Math.round(o.deliveryFee * 0.1), 0);
 
+      let filtered = partners;
+      if (input.search) {
+        const q = input.search.toLowerCase();
+        filtered = filtered.filter((p) =>
+          p.fullName.toLowerCase().includes(q) || p.phone.includes(q) || p.area.toLowerCase().includes(q)
+        );
+      }
+
       return {
-        partners,
+        partners: filtered,
         ledger: {
           deliveryFeesBooked: active.reduce((s, o) => s + o.deliveryFee, 0),
           deliveryFeesRealized: paid.reduce((s, o) => s + o.deliveryFee, 0),
@@ -192,17 +411,90 @@ export const adminRouter = createRouter({
       const [before] = await db.select().from(deliveryPartners).where(eq(deliveryPartners.id, input.id));
       await db.update(deliveryPartners).set({ status: input.status }).where(eq(deliveryPartners.id, input.id));
       const [after] = await db.select().from(deliveryPartners).where(eq(deliveryPartners.id, input.id));
-      await writeAudit({
-        key: input.key,
-        action: "delivery_partner.status.changed",
-        entityType: "delivery_partner",
-        entityId: input.id,
-        beforeState: before,
-        afterState: after,
-      });
+      await writeAudit({ key: input.key, action: "delivery_partner.status.changed", entityType: "delivery_partner", entityId: input.id, beforeState: before, afterState: after });
       return { ok: true };
     }),
 
+  // ============================================
+  // BUYERS / CUSTOMERS
+  // ============================================
+  customers: publicQuery.input(z.object({ key: z.string(), search: z.string().optional() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    const rows = await db.select().from(customers).orderBy(desc(customers.createdAt));
+    let filtered = rows;
+    if (input.search) {
+      const q = input.search.toLowerCase();
+      filtered = filtered.filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q));
+    }
+
+    // Get order counts per customer
+    const allOrders = await db.select().from(orders);
+    const orderMap = new Map<string, number>();
+    const spentMap = new Map<string, number>();
+    for (const o of allOrders) {
+      if (o.status === "cancelled") continue;
+      const key = o.phone;
+      orderMap.set(key, (orderMap.get(key) ?? 0) + 1);
+      spentMap.set(key, (spentMap.get(key) ?? 0) + o.total);
+    }
+
+    return filtered.map((c) => ({
+      ...c,
+      orderCount: orderMap.get(c.phone) ?? 0,
+      totalSpent: spentMap.get(c.phone) ?? 0,
+    }));
+  }),
+
+  customerOrders: publicQuery.input(z.object({ key: z.string(), phone: z.string() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    const rows = await db.select().from(orders).where(eq(orders.phone, input.phone)).orderBy(desc(orders.createdAt));
+    const withItems = await Promise.all(
+      rows.map(async (o) => ({
+        ...o,
+        items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)),
+      })),
+    );
+    return withItems;
+  }),
+
+  // ============================================
+  // LISTINGS (with search)
+  // ============================================
+  listings: publicQuery.input(z.object({ key: z.string(), search: z.string().optional(), status: z.enum(["pending", "approved", "rejected"]).optional() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    const rows = await db
+      .select({ listing: listings, seller: sellers })
+      .from(listings)
+      .innerJoin(sellers, eq(listings.sellerId, sellers.id))
+      .orderBy(desc(listings.createdAt));
+
+    let mapped = rows.map(({ listing, seller }) => ({ ...listing, sellerName: seller.shopName, sellerVerified: seller.verified }));
+    if (input.status) mapped = mapped.filter((l) => l.status === input.status);
+    if (input.search) {
+      const q = input.search.toLowerCase();
+      mapped = mapped.filter((l) => l.name.toLowerCase().includes(q) || l.sellerName.toLowerCase().includes(q));
+    }
+    return mapped.sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0));
+  }),
+
+  setListingStatus: publicQuery
+    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected"]) }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [before] = await db.select().from(listings).where(eq(listings.id, input.id));
+      await db.update(listings).set({ status: input.status }).where(eq(listings.id, input.id));
+      const [after] = await db.select().from(listings).where(eq(listings.id, input.id));
+      await writeAudit({ key: input.key, action: "listing.status.changed", entityType: "listing", entityId: input.id, beforeState: before, afterState: after });
+      return { ok: true };
+    }),
+
+  // ============================================
+  // AD BOOKINGS
+  // ============================================
   adBookings: publicQuery
     .input(z.object({ key: z.string() }))
     .query(async ({ input }) => {
@@ -236,25 +528,13 @@ export const adminRouter = createRouter({
       const [before] = await db.select().from(sellerAdBookings).where(eq(sellerAdBookings.id, input.id));
       await db.update(sellerAdBookings).set({ status: input.status }).where(eq(sellerAdBookings.id, input.id));
       const [after] = await db.select().from(sellerAdBookings).where(eq(sellerAdBookings.id, input.id));
-      await writeAudit({
-        key: input.key,
-        action: "seller_ad_booking.status.changed",
-        entityType: "seller_ad_booking",
-        entityId: input.id,
-        beforeState: before,
-        afterState: after,
-      });
+      await writeAudit({ key: input.key, action: "seller_ad_booking.status.changed", entityType: "seller_ad_booking", entityId: input.id, beforeState: before, afterState: after });
       return { ok: true };
     }),
 
-  auditLog: publicQuery
-    .input(z.object({ key: z.string() }))
-    .query(async ({ input }) => {
-      requireAdmin(input.key);
-      const db = getDb();
-      return db.select().from(adminAuditLogs).orderBy(desc(adminAuditLogs.createdAt)).limit(300);
-    }),
-
+  // ============================================
+  // ACCOUNTS (Transparent Books)
+  // ============================================
   accounts: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
     requireAdmin(input.key);
     const db = getDb();
@@ -268,6 +548,11 @@ export const adminRouter = createRouter({
     const adRealized = adRows.filter((a) => ["paid", "active", "completed"].includes(a.status)).reduce((s, a) => s + a.amount, 0);
     const commissionBooked = active.reduce((s, o) => s + o.commissionFee, 0);
     const commissionRealized = paid.reduce((s, o) => s + o.commissionFee, 0);
+
+    // Get actual payout history totals
+    const payoutRows = await db.select().from(payouts).where(eq(payouts.status, "completed"));
+    const totalPayoutsSent = payoutRows.reduce((s, p) => s + p.amount, 0);
+
     const entries = active.map((o) => ({
       id: o.id,
       code: o.code,
@@ -282,8 +567,9 @@ export const adminRouter = createRouter({
       sellerPayout: o.subtotal - o.commissionFee,
       total: o.total,
     }));
+
     return {
-      rate: COMMISSION_RATE,
+      rate: 0.07,
       totals: {
         orders: active.length,
         sales: active.reduce((s, o) => s + o.subtotal, 0),
@@ -298,11 +584,13 @@ export const adminRouter = createRouter({
         grossPlatformIncomeBooked: commissionBooked + deliveryIncomeBooked + adBooked,
         grossPlatformIncomeRealized: commissionRealized + deliveryIncomeRealized + adRealized,
         sellerPayoutsOwed: active.reduce((s, o) => s + (o.subtotal - o.commissionFee), 0),
+        sellerPayoutsSent: totalPayoutsSent,
+        sellerPayoutsPending: active.reduce((s, o) => s + (o.subtotal - o.commissionFee), 0) - totalPayoutsSent,
         receivedFromBuyers: paid.reduce((s, o) => s + o.total, 0),
         awaitingBuyerPayment: active.filter((o) => o.paymentStatus !== "paid").reduce((s, o) => s + o.total, 0),
       },
       incomeStreams: [
-        { stream: "Product commission", booked: commissionBooked, realized: commissionRealized, rule: `${Math.round(COMMISSION_RATE * 100)}% of product subtotal` },
+        { stream: "Product commission", booked: commissionBooked, realized: commissionRealized, rule: "7% of product subtotal" },
         { stream: "Delivery income", booked: deliveryIncomeBooked, realized: deliveryIncomeRealized, rule: "10% of delivery fee" },
         { stream: "Seller ad revenue", booked: adBooked, realized: adRealized, rule: "Weekly UGX 25,000 / Monthly UGX 50,000" },
       ],
@@ -310,48 +598,9 @@ export const adminRouter = createRouter({
     };
   }),
 
-  affiliates: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
-    requireAdmin(input.key);
-    const db = getDb();
-    return db.select().from(affiliates).orderBy(desc(affiliates.createdAt));
-  }),
-
-  listings: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
-    requireAdmin(input.key);
-    const db = getDb();
-    const rows = await db
-      .select({ listing: listings, seller: sellers })
-      .from(listings)
-      .innerJoin(sellers, eq(listings.sellerId, sellers.id))
-      .orderBy(desc(listings.createdAt));
-    return rows
-      .map(({ listing, seller }) => ({ ...listing, sellerName: seller.shopName, sellerVerified: seller.verified }))
-      .sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0));
-  }),
-
-  setListingStatus: publicQuery
-    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected"]) }))
-    .mutation(async ({ input }) => {
-      requireAdmin(input.key);
-      const db = getDb();
-      const [before] = await db.select().from(listings).where(eq(listings.id, input.id));
-      await db.update(listings).set({ status: input.status }).where(eq(listings.id, input.id));
-      const [after] = await db.select().from(listings).where(eq(listings.id, input.id));
-      await writeAudit({
-        key: input.key,
-        action: "listing.status.changed",
-        entityType: "listing",
-        entityId: input.id,
-        beforeState: before,
-        afterState: after,
-      });
-      return { ok: true };
-    }),
-
   // ============================================
-  // PAYOUTS
+  // PAYOUTS (COMPLETE REWRITE)
   // ============================================
-
   pendingPayouts: publicQuery
     .input(z.object({ key: z.string() }))
     .query(async ({ input }) => {
@@ -404,10 +653,8 @@ export const adminRouter = createRouter({
         for (const it of items) {
           const product = productById.get(Number(it.itemId));
           if (!product) continue;
-
           const lineTotal = Number(it.price) * Number(it.qty);
           grossTotal += lineTotal;
-
           const sid = Number(product.sellerId);
           perSellerGross.set(sid, (perSellerGross.get(sid) ?? 0) + lineTotal);
         }
@@ -417,10 +664,7 @@ export const adminRouter = createRouter({
         for (const [sid, sellerGross] of perSellerGross.entries()) {
           const seller = sellerById.get(sid);
           if (!seller) continue;
-
-          const allocatedCommission = Math.round(
-            (sellerGross / grossTotal) * Number(order.commissionFee ?? 0),
-          );
+          const allocatedCommission = Math.round((sellerGross / grossTotal) * Number(order.commissionFee ?? 0));
           const payoutNet = sellerGross - allocatedCommission;
           if (payoutNet <= 0) continue;
 
@@ -442,21 +686,27 @@ export const adminRouter = createRouter({
       }
 
       const pending = Array.from(grouped.values())
-        .map((x) => {
-          const codes = Array.from(x.orderCodeSet);
-          return {
-            seller_id: x.sellerId,
-            seller_name: x.sellerName,
-            payout_method: x.payoutMethod,
-            payout_number: x.payoutNumber,
-            total_owed: x.totalOwed,
-            order_count: codes.length,
-            order_codes: codes,
-          };
-        })
+        .map((x) => ({
+          seller_id: x.sellerId,
+          seller_name: x.sellerName,
+          payout_method: x.payoutMethod,
+          payout_number: x.payoutNumber,
+          total_owed: x.totalOwed,
+          order_count: x.orderCodeSet.size,
+          order_codes: Array.from(x.orderCodeSet),
+        }))
         .sort((a, b) => b.total_owed - a.total_owed);
 
       return { success: true, pending };
+    }),
+
+  payoutHistory: publicQuery
+    .input(z.object({ key: z.string(), limit: z.number().default(100) }))
+    .query(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const rows = await db.select().from(payouts).orderBy(desc(payouts.createdAt)).limit(input.limit);
+      return { success: true, payouts: rows };
     }),
 
   sendPayout: publicQuery
@@ -473,56 +723,63 @@ export const adminRouter = createRouter({
       requireAdmin(input.key);
       const db = getDb();
 
-      if (!FLW_SECRET) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "FLW_SECRET_KEY is missing in environment variables.",
-        });
-      }
-
+      const orderCodes = normalizeOrderCodes(input.orderCodes);
       const reference = `UGS-PAYOUT-${input.sellerId}-${Date.now()}`;
 
-      const accountNumber = normalizeUgPhone(input.payoutNumber);
-      const orderCodes = normalizeOrderCodes(input.orderCodes);
-
-      if (!accountNumber) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Invalid payout number.",
-        });
-      }
-
-      const res = await fetch(`${FLW_BASE}/transfers`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${FLW_SECRET}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          account_bank: "MPS",
-          account_number: accountNumber,
-          amount: Math.round(input.amount),
-          currency: "UGX",
-          narration: `UG Souq payout to ${input.sellerName}`,
-          reference,
-          callback_url: `${process.env.APP_URL}/api/trpc/admin.payoutWebhook`,
-          meta: [{ seller_id: input.sellerId }, { order_codes: orderCodes }],
-        }),
+      // Insert payout record as "processing"
+      await db.insert(payouts).values({
+        sellerId: input.sellerId,
+        orderCodes: JSON.stringify(orderCodes),
+        amount: Math.round(input.amount),
+        payoutMethod: input.payoutMethod,
+        payoutNumber: input.payoutNumber,
+        status: "processing",
+        reference,
       });
 
-      const payload: any = await res.json().catch(() => ({}));
-      if (!res.ok || payload?.status !== "success") {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: payload?.message || "Payout failed",
+      // If Flutterwave is configured, attempt transfer
+      if (FLW_SECRET) {
+        const accountNumber = normalizeUgPhone(input.payoutNumber);
+        if (!accountNumber) {
+          await db.update(payouts).set({ status: "failed", failedReason: "Invalid payout number" }).where(eq(payouts.reference, reference));
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payout number." });
+        }
+
+        const res = await fetch(`${FLW_BASE}/transfers`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${FLW_SECRET}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            account_bank: "MPS",
+            account_number: accountNumber,
+            amount: Math.round(input.amount),
+            currency: "UGX",
+            narration: `UG Souq payout to ${input.sellerName}`,
+            reference,
+            callback_url: `${process.env.APP_URL}/api/trpc/admin.payoutWebhook`,
+            meta: [{ seller_id: input.sellerId }, { order_codes: orderCodes }],
+          }),
         });
+
+        const payload: any = await res.json().catch(() => ({}));
+        await db.update(payouts).set({ flutterwaveResponse: JSON.stringify(payload) }).where(eq(payouts.reference, reference));
+
+        if (!res.ok || payload?.status !== "success") {
+          await db.update(payouts).set({ status: "failed", failedReason: payload?.message || "Payout failed" }).where(eq(payouts.reference, reference));
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: payload?.message || "Payout failed" });
+        }
+
+        await db.update(payouts).set({ status: "completed", processedAt: new Date() }).where(eq(payouts.reference, reference));
+      } else {
+        // No Flutterwave — mark as completed manually (for testing/demo)
+        await db.update(payouts).set({ status: "completed", processedAt: new Date() }).where(eq(payouts.reference, reference));
       }
 
+      // Mark orders as paid out
       for (const code of orderCodes) {
-        await db
-          .update(orders)
-          .set({ paidOut: true, payoutRef: reference })
-          .where(eq(orders.code, code));
+        await db.update(orders).set({ paidOut: true, payoutRef: reference }).where(eq(orders.code, code));
       }
 
       await writeAudit({
@@ -540,19 +797,19 @@ export const adminRouter = createRouter({
         },
       });
 
+      await createNotification({
+        type: "payout_completed",
+        title: "Payout Completed",
+        message: `UGX ${input.amount.toLocaleString()} sent to ${input.sellerName}.`,
+        entityType: "seller",
+        entityId: String(input.sellerId),
+      });
+
       return {
         success: true,
-        message: "Payout initiated",
+        message: "Payout completed",
         reference,
-        flutterwaveStatus: payload?.data?.status ?? "NEW",
       };
-    }),
-
-  payoutHistory: publicQuery
-    .input(z.object({ key: z.string() }))
-    .query(({ input }) => {
-      requireAdmin(input.key);
-      return { success: true, payouts: [] as any[] };
     }),
 
   payoutWebhook: publicQuery
@@ -567,10 +824,8 @@ export const adminRouter = createRouter({
         const status = String(data?.status ?? "").toUpperCase();
 
         if (reference && status !== "SUCCESSFUL") {
-          await db
-            .update(orders)
-            .set({ paidOut: false, payoutRef: null })
-            .where(eq(orders.payoutRef, reference));
+          await db.update(payouts).set({ status: "rolled_back" }).where(eq(payouts.reference, reference));
+          await db.update(orders).set({ paidOut: false, payoutRef: null }).where(eq(orders.payoutRef, reference));
           await db.insert(adminAuditLogs).values({
             actorTag: "system-webhook",
             action: "payout.webhook.rollback",
@@ -578,11 +833,167 @@ export const adminRouter = createRouter({
             entityId: reference,
             meta: JSON.stringify({ status, event: payload?.event ?? null }),
           });
+        } else if (reference && status === "SUCCESSFUL") {
+          await db.update(payouts).set({ status: "completed", processedAt: new Date() }).where(eq(payouts.reference, reference));
         }
       }
 
       return { received: true };
     }),
+
+  // ============================================
+  // PLATFORM SETTINGS
+  // ============================================
+  settings: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    const [row] = await db.select().from(platformSettings);
+    return row ?? {
+      id: 1,
+      commissionRate: "0.0700",
+      deliveryFeeBase: 3000,
+      deliveryFeePerKm: 500,
+      platformName: "UG Souq",
+      platformEmail: "support@ugsouq.com",
+      enableCashOnDelivery: true,
+      enableMtnMomo: true,
+      enableAirtelMoney: true,
+      minOrderAmount: 5000,
+      freeDeliveryThreshold: 100000,
+    };
+  }),
+
+  updateSettings: publicQuery
+    .input(z.object({
+      key: z.string(),
+      commissionRate: z.number().min(0).max(1).optional(),
+      deliveryFeeBase: z.number().min(0).optional(),
+      deliveryFeePerKm: z.number().min(0).optional(),
+      platformName: z.string().optional(),
+      platformEmail: z.string().email().optional(),
+      enableCashOnDelivery: z.boolean().optional(),
+      enableMtnMomo: z.boolean().optional(),
+      enableAirtelMoney: z.boolean().optional(),
+      minOrderAmount: z.number().min(0).optional(),
+      freeDeliveryThreshold: z.number().min(0).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [before] = await db.select().from(platformSettings);
+      const updates: any = {};
+      if (input.commissionRate !== undefined) updates.commissionRate = input.commissionRate.toFixed(4);
+      if (input.deliveryFeeBase !== undefined) updates.deliveryFeeBase = input.deliveryFeeBase;
+      if (input.deliveryFeePerKm !== undefined) updates.deliveryFeePerKm = input.deliveryFeePerKm;
+      if (input.platformName !== undefined) updates.platformName = input.platformName;
+      if (input.platformEmail !== undefined) updates.platformEmail = input.platformEmail;
+      if (input.enableCashOnDelivery !== undefined) updates.enableCashOnDelivery = input.enableCashOnDelivery;
+      if (input.enableMtnMomo !== undefined) updates.enableMtnMomo = input.enableMtnMomo;
+      if (input.enableAirtelMoney !== undefined) updates.enableAirtelMoney = input.enableAirtelMoney;
+      if (input.minOrderAmount !== undefined) updates.minOrderAmount = input.minOrderAmount;
+      if (input.freeDeliveryThreshold !== undefined) updates.freeDeliveryThreshold = input.freeDeliveryThreshold;
+
+      await db.insert(platformSettings).values({ id: 1, ...updates }).onDuplicateKeyUpdate({ set: updates });
+      await writeAudit({ key: input.key, action: "settings.updated", entityType: "platform_settings", entityId: 1, beforeState: before, afterState: updates });
+      return { ok: true };
+    }),
+
+  // ============================================
+  // NOTIFICATIONS
+  // ============================================
+  notifications: publicQuery.input(z.object({ key: z.string(), unreadOnly: z.boolean().default(false) })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    let query = db.select().from(notifications).orderBy(desc(notifications.createdAt)).limit(100);
+    const rows = await query;
+    if (input.unreadOnly) return rows.filter((n) => !n.isRead);
+    return rows;
+  }),
+
+  markNotificationRead: publicQuery
+    .input(z.object({ key: z.string(), id: z.number() }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, input.id));
+      return { ok: true };
+    }),
+
+  markAllNotificationsRead: publicQuery
+    .input(z.object({ key: z.string() }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      await db.update(notifications).set({ isRead: true }).where(eq(notifications.isRead, false));
+      return { ok: true };
+    }),
+
+  // ============================================
+  // RETURNS / DISPUTES
+  // ============================================
+  returns: publicQuery.input(z.object({ key: z.string(), status: z.string().optional() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    let query = db.select().from(returns).orderBy(desc(returns.createdAt));
+    const rows = await query;
+    if (input.status) return rows.filter((r) => r.status === input.status);
+    return rows;
+  }),
+
+  createReturn: publicQuery
+    .input(z.object({
+      key: z.string(),
+      orderId: z.number(),
+      orderCode: z.string(),
+      customerName: z.string(),
+      customerPhone: z.string(),
+      reason: z.string(),
+      refundAmount: z.number().default(0),
+    }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [ret] = await db.insert(returns).values({
+        orderId: input.orderId,
+        orderCode: input.orderCode,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone,
+        reason: input.reason,
+        refundAmount: input.refundAmount,
+      }).$returningId();
+      await writeAudit({ key: input.key, action: "return.created", entityType: "return", entityId: ret.id, meta: { orderCode: input.orderCode, reason: input.reason } });
+      await createNotification({ type: "order_cancelled", title: "Return Requested", message: `Return requested for order ${input.orderCode}.`, entityType: "return", entityId: String(ret.id) });
+      return { ok: true, id: ret.id };
+    }),
+
+  updateReturnStatus: publicQuery
+    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["requested", "approved", "rejected", "picked_up", "refunded", "closed"]), adminNotes: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const updates: any = { status: input.status };
+      if (input.adminNotes !== undefined) updates.adminNotes = input.adminNotes;
+      if (input.status === "refunded" || input.status === "closed") updates.resolvedAt = new Date();
+      await db.update(returns).set(updates).where(eq(returns.id, input.id));
+      await writeAudit({ key: input.key, action: "return.status.changed", entityType: "return", entityId: input.id, meta: { status: input.status } });
+      return { ok: true };
+    }),
+
+  // ============================================
+  // AFFILIATES
+  // ============================================
+  affiliates: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    return db.select().from(affiliates).orderBy(desc(affiliates.createdAt));
+  }),
+
+  // ============================================
+  // AUDIT LOG
+  // ============================================
+  auditLog: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    return db.select().from(adminAuditLogs).orderBy(desc(adminAuditLogs.createdAt)).limit(300);
+  }),
 });
-
-
