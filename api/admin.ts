@@ -812,33 +812,77 @@ export const adminRouter = createRouter({
       };
     }),
 
+  // Webhook endpoint - NO admin key required (called by Flutterwave)
   payoutWebhook: publicQuery
     .input(z.any())
     .mutation(async ({ input }) => {
       const db = getDb();
       const payload = input;
 
-      if (payload?.event === "transfer.completed") {
+      console.log("[FLUTTERWAVE WEBHOOK] Received:", JSON.stringify(payload));
+
+      if (payload?.event === "transfer.completed" || payload?.event === "transfer.failed") {
         const data = payload?.data;
         const reference = String(data?.reference ?? "");
         const status = String(data?.status ?? "").toUpperCase();
 
-        if (reference && status !== "SUCCESSFUL") {
-          await db.update(payouts).set({ status: "rolled_back" }).where(eq(payouts.reference, reference));
+        if (!reference) return { received: true };
+
+        if (payload?.event === "transfer.failed" || (status && status !== "SUCCESSFUL")) {
+          await db.update(payouts).set({ status: "rolled_back", failedReason: payload?.data?.complete_message || "Transfer failed" }).where(eq(payouts.reference, reference));
           await db.update(orders).set({ paidOut: false, payoutRef: null }).where(eq(orders.payoutRef, reference));
           await db.insert(adminAuditLogs).values({
             actorTag: "system-webhook",
             action: "payout.webhook.rollback",
             entityType: "payout_reference",
             entityId: reference,
+            meta: JSON.stringify({ status, event: payload?.event ?? null, data: payload?.data }),
+          });
+        } else if (status === "SUCCESSFUL") {
+          await db.update(payouts).set({ status: "completed", processedAt: new Date() }).where(eq(payouts.reference, reference));
+          await db.insert(adminAuditLogs).values({
+            actorTag: "system-webhook",
+            action: "payout.webhook.success",
+            entityType: "payout_reference",
+            entityId: reference,
             meta: JSON.stringify({ status, event: payload?.event ?? null }),
           });
-        } else if (reference && status === "SUCCESSFUL") {
-          await db.update(payouts).set({ status: "completed", processedAt: new Date() }).where(eq(payouts.reference, reference));
         }
       }
 
       return { received: true };
+    }),
+
+  // Test endpoint to verify Flutterwave keys are working
+  testFlutterwave: publicQuery
+    .input(z.object({ key: z.string() }))
+    .query(async ({ input }) => {
+      requireAdmin(input.key);
+
+      if (!FLW_SECRET) {
+        return { ok: false, message: "FLW_SECRET_KEY not configured. Add it to Railway Variables." };
+      }
+
+      try {
+        // Test by getting balance
+        const res = await fetch(`${FLW_BASE}/balances/UGX`, {
+          headers: { Authorization: `Bearer ${FLW_SECRET}` },
+        });
+        const data: any = await res.json().catch(() => ({}));
+
+        if (res.ok && data?.status === "success") {
+          return { 
+            ok: true, 
+            message: "Flutterwave connection successful!", 
+            balance: data?.data?.available_balance,
+            currency: data?.data?.currency,
+            mode: FLW_SECRET.includes("TEST") ? "TEST MODE" : "LIVE MODE"
+          };
+        }
+        return { ok: false, message: data?.message || "Connection failed", response: data };
+      } catch (e: any) {
+        return { ok: false, message: e.message || "Network error" };
+      }
     }),
 
   // ============================================
