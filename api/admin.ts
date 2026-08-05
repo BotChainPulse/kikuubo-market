@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, desc, and, like, gte, lte, sql } from "drizzle-orm";
-import { createHash } from "crypto";
+import { createHash, createHmac } from "crypto";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import {
@@ -63,6 +63,15 @@ async function getFlutterwaveToken(): Promise<string | null> {
     console.error("[FLW] Token network error:", e);
     return null;
   }
+}
+
+// Webhook signature verification
+const FLW_WEBHOOK_SECRET = process.env.FLW_WEBHOOK_SECRET;
+
+function verifyWebhookSignature(body: string, signature: string): boolean {
+  if (!FLW_WEBHOOK_SECRET) return true; // Skip verification if not configured
+  const expected = crypto.createHmac("sha256", FLW_WEBHOOK_SECRET).update(body).digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 }
 
 async function flwFetch(path: string, options: RequestInit = {}): Promise<Response> {
@@ -872,9 +881,17 @@ export const adminRouter = createRouter({
   // Webhook endpoint - NO admin key required (called by Flutterwave)
   payoutWebhook: publicQuery
     .input(z.any())
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const db = getDb();
       const payload = input;
+
+      // Verify webhook signature if secret is configured
+      const signature = (ctx as any)?.req?.headers?.["verif-hash"] ?? "";
+      const rawBody = JSON.stringify(payload);
+      if (FLW_WEBHOOK_SECRET && signature && !verifyWebhookSignature(rawBody, signature)) {
+        console.error("[FLW WEBHOOK] Invalid signature received");
+        return { received: false, error: "Invalid signature" };
+      }
 
       console.log("[FLUTTERWAVE WEBHOOK] Received:", JSON.stringify(payload));
 
