@@ -7,7 +7,7 @@ const ADMIN_KEY = process.env.ADMIN_KEY ?? "ugsouq-admin-2026";
 export const migrateRouter = createRouter({
   runMigration: publicQuery
     .input(z.object({ key: z.string() }))
-    .mutation(async ({ input }) => {
+    .query(async ({ input }) => {
       if (input.key !== ADMIN_KEY) {
         return { ok: false, error: "Invalid admin key" };
       }
