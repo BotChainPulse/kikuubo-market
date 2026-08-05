@@ -65,14 +65,14 @@ export default function Header() {
               <span className="absolute -top-0.5 -right-0.5 text-[10px] font-bold text-white min-w-4.5 h-4.5 px-1 rounded-full grid place-items-center" style={{ background: ORANGE }}>{count}</span>
             )}
           </Link>
-          <form onSubmit={goSearch} className="w-full sm:w-auto sm:flex-1 sm:order-none order-last flex items-center rounded-full border border-neutral-300 overflow-hidden bg-white focus-within:border-neutral-500 transition-colors">
+          <form onSubmit={goSearch} className="w-full min-w-0 sm:w-auto sm:flex-1 sm:order-none order-last flex items-center rounded-full border border-neutral-300 overflow-hidden bg-white focus-within:border-neutral-500 transition-colors">
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               className="flex-1 min-w-0 px-4 py-2.5 text-sm outline-none bg-transparent"
-              placeholder="Search phones, fashion, farm produce..."
+              placeholder="Search UG Souq products..."
             />
-            <button type="submit" className="px-5 py-2.5 text-white text-sm font-semibold flex items-center gap-2" style={{ background: ORANGE }}>
+            <button type="submit" className="px-3 sm:px-5 py-2.5 text-white text-sm font-semibold flex items-center gap-2" style={{ background: ORANGE }}>
               <Search size={16} /> <span className="hidden sm:inline">Search</span>
             </button>
           </form>

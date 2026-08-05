@@ -81,7 +81,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100">
+    <div className="min-h-screen bg-neutral-100 overflow-x-clip">
       <header className="bg-neutral-900 text-white">
         <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 font-extrabold">
@@ -98,7 +98,7 @@ export default function Admin() {
             </button>
           </div>
         </div>
-        <div className="mx-auto max-w-7xl px-4 flex gap-1 text-sm">
+        <div className="mx-auto max-w-7xl px-4 flex gap-1 text-sm overflow-x-auto whitespace-nowrap no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none]">
           {([
             ['overview', LayoutDashboard, 'Overview'],
             ['sellers', Store, 'Sellers'],
@@ -114,7 +114,7 @@ export default function Admin() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-t-lg font-medium ${tab === t ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-400 hover:text-white'}`}
+              className={`flex shrink-0 items-center gap-1.5 px-4 py-2.5 rounded-t-lg font-medium ${tab === t ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-400 hover:text-white'}`}
             >
               <Icon size={15} /> {label}
             </button>

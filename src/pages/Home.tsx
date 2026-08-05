@@ -68,7 +68,7 @@ export default function HomePage() {
 
       {/* Service chips */}
       <div className="bg-white border-b border-neutral-200">
-        <div className="mx-auto max-w-7xl px-4 py-3 flex gap-2 overflow-x-auto">
+        <div className="mx-auto max-w-7xl px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none]">
           {services.map(({ icon: Icon, label, tag, to }) => (
             <Link key={label} to={to} className="flex items-center gap-2 px-3.5 py-2 rounded-full border border-neutral-200 text-sm font-medium whitespace-nowrap hover:border-neutral-400 hover:shadow-sm transition-all bg-white">
               <Icon size={16} style={{ color: ORANGE }} />
@@ -94,8 +94,8 @@ export default function HomePage() {
             </p>
             <div className="mt-6 flex items-center rounded-full border border-neutral-300 bg-white overflow-hidden max-w-md shadow-sm focus-within:border-neutral-500">
               <Search size={16} className="ml-4 text-neutral-400" />
-              <input className="flex-1 px-3 py-3 text-sm outline-none" placeholder="Search UG Souq..." />
-              <button className="m-1 px-5 py-2 rounded-full text-white text-sm font-semibold" style={{ background: ORANGE }}>Search</button>
+              <input className="flex-1 min-w-0 px-3 py-3 text-sm outline-none" placeholder="Search UG Souq..." />
+              <button className="m-1 px-4 sm:px-5 py-2 rounded-full text-white text-sm font-semibold" style={{ background: ORANGE }}>Search</button>
             </div>
             <div className="mt-5 flex flex-wrap gap-2 text-xs font-medium">
               <Link to="/catalog?category=phones" className="px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-orange-300 hover:text-orange-700 transition-colors">Phones under 500K</Link>
