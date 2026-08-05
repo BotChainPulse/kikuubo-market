@@ -9,6 +9,8 @@ import {
   timestamp,
   bigint,
   mediumtext,
+  decimal,
+  json,
 } from "drizzle-orm/mysql-core";
 
 export const sellers = mysqlTable("sellers", {
@@ -30,7 +32,7 @@ export const sellers = mysqlTable("sellers", {
   commissionTermsAcceptedAt: timestamp("commission_terms_accepted_at"),
   sellerContractAcceptedAt: timestamp("seller_contract_accepted_at"),
   verified: boolean("verified").notNull().default(false),
-  rating: int("rating").notNull().default(45), // store rating ×10 (45 = 4.5)
+  rating: int("rating").notNull().default(45),
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -41,7 +43,7 @@ export const products = mysqlTable("products", {
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 255 }).notNull(),
   category: varchar("category", { length: 64 }).notNull(),
-  price: int("price").notNull(), // UGX, whole shillings
+  price: int("price").notNull(),
   oldPrice: int("old_price"),
   image: varchar("image", { length: 255 }).notNull(),
   stock: int("stock").notNull().default(0),
@@ -62,7 +64,7 @@ export const listings = mysqlTable("listings", {
   condition: mysqlEnum("condition", ["new", "refurbished", "used"]).notNull().default("new"),
   warrantyMonths: int("warranty_months").notNull().default(0),
   imageNote: varchar("image_note", { length: 255 }).notNull(),
-  imageData: mediumtext("image_data"), // seller-uploaded photo, stored as data URL (Railway has no persistent disk)
+  imageData: mediumtext("image_data"),
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -76,7 +78,7 @@ export const restaurants = mysqlTable("restaurants", {
   deliveryMins: int("delivery_mins").notNull().default(35),
   deliveryFee: int("delivery_fee").notNull().default(3000),
   minOrder: int("min_order").notNull().default(10000),
-  rating: int("rating").notNull().default(45), // ×10
+  rating: int("rating").notNull().default(45),
   image: varchar("image", { length: 255 }).notNull(),
   open: boolean("open").notNull().default(true),
   featured: boolean("featured").notNull().default(false),
@@ -96,7 +98,7 @@ export const menuItems = mysqlTable("menu_items", {
 
 export const orders = mysqlTable("orders", {
   id: serial("id").primaryKey(),
-  code: varchar("code", { length: 16 }).notNull(), // e.g. US-8F3K2
+  code: varchar("code", { length: 16 }).notNull(),
   customerName: varchar("customer_name", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 32 }).notNull(),
   address: text("address").notNull(),
@@ -106,10 +108,14 @@ export const orders = mysqlTable("orders", {
   total: int("total").notNull(),
   status: mysqlEnum("status", ["placed", "confirmed", "pending_delivery", "on_the_way", "delivered", "cancelled"]).notNull().default("placed"),
   paymentStatus: mysqlEnum("payment_status", ["unpaid", "pending_confirmation", "paid"]).notNull().default("unpaid"),
-  paymentRef: varchar("payment_ref", { length: 64 }), // MoMo/Airtel transaction ID the buyer enters after sending money
+  paymentRef: varchar("payment_ref", { length: 64 }),
+  deliveryPartnerId: bigint("delivery_partner_id", { mode: "number", unsigned: true }),
+  deliveryAssignedAt: timestamp("delivery_assigned_at"),
+  deliveryNotes: text("delivery_notes"),
+  deliveredAt: timestamp("delivered_at"),
   paidOut: boolean("paid_out").notNull().default(false),
   payoutRef: varchar("payout_ref", { length: 64 }),
-  commissionFee: int("commission_fee").notNull().default(0), // UG Souq's cut of the subtotal (COMMISSION_RATE at order time)
+  commissionFee: int("commission_fee").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -127,7 +133,7 @@ export const customers = mysqlTable("customers", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 32 }).notNull(),
-  location: text("location"), // delivery area / landmark for easy delivery
+  location: text("location"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -175,4 +181,77 @@ export const adminAuditLogs = mysqlTable("admin_audit_logs", {
   afterState: text("after_state"),
   meta: text("meta"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// NEW TABLES
+export const payouts = mysqlTable("payouts", {
+  id: serial("id").primaryKey(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull(),
+  orderCodes: json("order_codes").notNull(),
+  amount: int("amount").notNull(),
+  payoutMethod: varchar("payout_method", { length: 32 }).notNull(),
+  payoutNumber: varchar("payout_number", { length: 32 }).notNull(),
+  status: mysqlEnum("status", ["pending", "processing", "completed", "failed", "rolled_back"]).notNull().default("pending"),
+  reference: varchar("reference", { length: 128 }).notNull().unique(),
+  flutterwaveResponse: json("flutterwave_response"),
+  processedAt: timestamp("processed_at"),
+  failedReason: text("failed_reason"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const platformSettings = mysqlTable("platform_settings", {
+  id: int("id").primaryKey().default(1),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 4 }).notNull().default("0.0700"),
+  deliveryFeeBase: int("delivery_fee_base").notNull().default(3000),
+  deliveryFeePerKm: int("delivery_fee_per_km").notNull().default(500),
+  platformName: varchar("platform_name", { length: 128 }).notNull().default("UG Souq"),
+  platformEmail: varchar("platform_email", { length: 255 }).default("support@ugsouq.com"),
+  enableCashOnDelivery: boolean("enable_cash_on_delivery").notNull().default(true),
+  enableMtnMomo: boolean("enable_mtn_momo").notNull().default(true),
+  enableAirtelMoney: boolean("enable_airtel_money").notNull().default(true),
+  minOrderAmount: int("min_order_amount").notNull().default(5000),
+  freeDeliveryThreshold: int("free_delivery_threshold").notNull().default(100000),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const sellerContracts = mysqlTable("seller_contracts", {
+  id: serial("id").primaryKey(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull(),
+  contractType: mysqlEnum("contract_type", ["seller_agreement", "commission_terms", "delivery_terms"]).notNull(),
+  version: varchar("version", { length: 16 }).notNull().default("1.0"),
+  accepted: boolean("accepted").notNull().default(false),
+  acceptedAt: timestamp("accepted_at"),
+  acceptedBy: mysqlEnum("accepted_by", ["seller", "admin"]).notNull().default("seller"),
+  adminKeyHash: varchar("admin_key_hash", { length: 64 }),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const notifications = mysqlTable("notifications", {
+  id: serial("id").primaryKey(),
+  type: mysqlEnum("type", [
+    "new_order", "payment_received", "seller_registered",
+    "delivery_partner_registered", "payout_completed", "payout_failed",
+    "listing_pending", "order_cancelled", "low_stock"
+  ]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  entityType: varchar("entity_type", { length: 64 }),
+  entityId: varchar("entity_id", { length: 64 }),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const returns = mysqlTable("returns", {
+  id: serial("id").primaryKey(),
+  orderId: bigint("order_id", { mode: "number", unsigned: true }).notNull(),
+  orderCode: varchar("order_code", { length: 16 }).notNull(),
+  customerName: varchar("customer_name", { length: 255 }).notNull(),
+  customerPhone: varchar("customer_phone", { length: 32 }).notNull(),
+  reason: text("reason").notNull(),
+  status: mysqlEnum("status", ["requested", "approved", "rejected", "picked_up", "refunded", "closed"]).notNull().default("requested"),
+  refundAmount: int("refund_amount").notNull().default(0),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
 });
