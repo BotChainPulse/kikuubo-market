@@ -483,7 +483,7 @@ function Orders({ adminKey }: { adminKey: string }) {
                 </select>
               </div>
               <p className="mt-2 text-sm text-neutral-600">
-                {o.customerName} · {o.phone} · {o.address.slice(0, 60)}{o.address.length > 60 ? '...' : ''} · {o.paymentMethod} · {new Date(o.createdAt).toLocaleString('en-UG')}
+                {(o.customerName ?? 'Unknown')} · {(o.phone ?? '-')} · {((o.address ?? '').slice(0, 60))}{((o.address ?? '').length > 60 ? '...' : '')} · {(o.paymentMethod ?? '-')} · {new Date(o.createdAt).toLocaleString('en-UG')}
               </p>
 
               {/* Delivery Assignment */}
