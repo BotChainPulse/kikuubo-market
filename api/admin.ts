@@ -667,6 +667,132 @@ export const adminRouter = createRouter({
       entries,
     };
   }),
+  // ============================================
+  // COMMISSION BREAKDOWN (by role)
+  // ============================================
+  commissionBreakdown: publicQuery
+    .input(z.object({ key: z.string() }))
+    .query(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+
+      const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+      const allSellers = await db.select().from(sellers);
+      const allPartners = await db.select().from(deliveryPartners);
+      const allAffiliates = await db.select().from(affiliates);
+      const adBookings = await db.select().from(sellerAdBookings);
+
+      const activeOrders = allOrders.filter((o) => o.status !== "cancelled");
+      const paidOrders = allOrders.filter((o) => o.status !== "cancelled" && o.paymentStatus === "paid");
+
+      // --- SELLER COMMISSIONS ---
+      const sellerMap = new Map<number, {
+        sellerId: number; shopName: string; ownerName: string; phone: string;
+        orders: number; totalSales: number; commissionBooked: number;
+        commissionRealized: number; payoutOwed: number; status: string;
+      }>();
+
+      for (const s of allSellers) {
+        sellerMap.set(s.id, {
+          sellerId: s.id, shopName: s.shopName, ownerName: s.ownerName, phone: s.phone,
+          orders: 0, totalSales: 0, commissionBooked: 0, commissionRealized: 0, payoutOwed: 0, status: s.status,
+        });
+      }
+
+      const allOrderItems = await db.select().from(orderItems);
+      const orderSellerMap = new Map<number, number>();
+      for (const oi of allOrderItems) {
+        if (!orderSellerMap.has(oi.orderId)) orderSellerMap.set(oi.orderId, oi.sellerId);
+      }
+
+      for (const o of activeOrders) {
+        const sellerId = orderSellerMap.get(o.id);
+        if (sellerId && sellerMap.has(sellerId)) {
+          const entry = sellerMap.get(sellerId)!;
+          entry.orders += 1;
+          entry.totalSales += o.subtotal;
+          entry.commissionBooked += o.commissionFee;
+          entry.payoutOwed += (o.subtotal - o.commissionFee);
+        }
+      }
+      for (const o of paidOrders) {
+        const sellerId = orderSellerMap.get(o.id);
+        if (sellerId && sellerMap.has(sellerId)) {
+          sellerMap.get(sellerId)!.commissionRealized += o.commissionFee;
+        }
+      }
+
+      // --- RIDER COMMISSIONS ---
+      const riderMap = new Map<number, {
+        riderId: number; fullName: string; phone: string; area: string;
+        vehicleType: string; orders: number; totalDeliveryFees: number;
+        platformIncomeBooked: number; platformIncomeRealized: number;
+        riderShareBooked: number; riderShareRealized: number; status: string;
+      }>();
+
+      for (const p of allPartners) {
+        riderMap.set(p.id, {
+          riderId: p.id, fullName: p.fullName, phone: p.phone, area: p.area,
+          vehicleType: p.vehicleType, orders: 0, totalDeliveryFees: 0,
+          platformIncomeBooked: 0, platformIncomeRealized: 0,
+          riderShareBooked: 0, riderShareRealized: 0, status: p.status,
+        });
+      }
+
+      for (const o of activeOrders) {
+        if (o.deliveryPartnerId && riderMap.has(o.deliveryPartnerId)) {
+          const entry = riderMap.get(o.deliveryPartnerId)!;
+          entry.orders += 1;
+          entry.totalDeliveryFees += o.deliveryFee;
+          const platformCut = Math.round(o.deliveryFee * 0.1);
+          entry.platformIncomeBooked += platformCut;
+          entry.riderShareBooked += (o.deliveryFee - platformCut);
+        }
+      }
+      for (const o of paidOrders) {
+        if (o.deliveryPartnerId && riderMap.has(o.deliveryPartnerId)) {
+          const entry = riderMap.get(o.deliveryPartnerId)!;
+          const platformCut = Math.round(o.deliveryFee * 0.1);
+          entry.platformIncomeRealized += platformCut;
+          entry.riderShareRealized += (o.deliveryFee - platformCut);
+        }
+      }
+
+      // --- AFFILIATES ---
+      const affiliateList = allAffiliates.map((a) => ({
+        affiliateId: a.id, name: a.name, phone: a.phone, code: a.code, channel: a.channel,
+        referrals: 0, commissionBooked: 0, commissionRealized: 0,
+      }));
+
+      const adBooked = adBookings.reduce((s, b) => s + (b.status !== "cancelled" ? b.price : 0), 0);
+      const adRealized = adBookings.reduce((s, b) => s + (b.status === "paid" || b.status === "completed" ? b.price : 0), 0);
+      const commissionBooked = activeOrders.reduce((s, o) => s + o.commissionFee, 0);
+      const commissionRealized = paidOrders.reduce((s, o) => s + o.commissionFee, 0);
+      const deliveryIncomeBooked = activeOrders.reduce((s, o) => s + Math.round(o.deliveryFee * 0.1), 0);
+      const deliveryIncomeRealized = paidOrders.reduce((s, o) => s + Math.round(o.deliveryFee * 0.1), 0);
+
+      return {
+        rate: 0.07,
+        totals: {
+          commissionBooked, commissionRealized,
+          deliveryIncomeBooked, deliveryIncomeRealized,
+          adRevenueBooked: adBooked, adRevenueRealized: adRealized,
+          grossPlatformIncomeBooked: commissionBooked + deliveryIncomeBooked + adBooked,
+          grossPlatformIncomeRealized: commissionRealized + deliveryIncomeRealized + adRealized,
+        },
+        sellers: Array.from(sellerMap.values()).filter((s) => s.orders > 0 || s.status === "approved"),
+        riders: Array.from(riderMap.values()).filter((r) => r.orders > 0 || r.status === "approved"),
+        affiliates: affiliateList,
+        streams: [
+          { stream: "Product commission (sellers)", booked: commissionBooked, realized: commissionRealized, rule: "7% of product subtotal" },
+          { stream: "Delivery platform fee (riders)", booked: deliveryIncomeBooked, realized: deliveryIncomeRealized, rule: "10% of delivery fee" },
+          { stream: "Seller ad revenue", booked: adBooked, realized: adRealized, rule: "Weekly UGX 25,000 / Monthly UGX 50,000" },
+          { stream: "Affiliate commission", booked: 0, realized: 0, rule: "Not yet configured" },
+        ],
+      };
+    }),
+
+
 
   // ============================================
   // PAYOUTS (COMPLETE REWRITE)
