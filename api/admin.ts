@@ -330,15 +330,21 @@ export const adminRouter = createRouter({
     if (input.search) {
       const q = input.search.toLowerCase();
       filtered = filtered.filter((o) =>
-        o.code.toLowerCase().includes(q) ||
-        o.customerName.toLowerCase().includes(q) ||
-        o.phone.includes(q)
+        (o.code ?? '').toLowerCase().includes(q) ||
+        ((o as any).customerName ?? '').toLowerCase().includes(q) ||
+        ((o as any).phone ?? '').includes(q)
       );
     }
 
     const withItems = await Promise.all(
       filtered.map(async (o) => ({
         ...o,
+        customerName: (o as any).customerName ?? 'Unknown',
+        phone: (o as any).phone ?? '',
+        address: (o as any).address ?? '',
+        paymentMethod: (o as any).paymentMethod ?? '',
+        deliveryPartnerId: (o as any).deliveryPartnerId ?? null,
+        paidOut: (o as any).paidOut ?? false,
         items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)),
       })),
     );
