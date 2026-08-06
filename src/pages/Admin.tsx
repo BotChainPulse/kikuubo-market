@@ -583,53 +583,249 @@ function Orders({ adminKey }: { adminKey: string }) {
 // ============================================
 // ACCOUNTS (Transparent Books)
 // ============================================
+// ACCOUNTS — COMMISSION TABLES BY ROLE
+// ============================================
 function Accounts({ adminKey }: { adminKey: string }) {
-  const { data, isLoading, isError, error, refetch } = trpc.admin.accounts.useQuery({ key: adminKey }, { retry: false })
+  const { data, isLoading, isError, error, refetch } = trpc.admin.commissionBreakdown.useQuery({ key: adminKey }, { retry: false })
 
-  if (isLoading) return <p className="text-neutral-500">Loading…</p>
+  if (isLoading) return <p className="text-neutral-500">Loading commission books…</p>
   if (isError) return <QueryError title="Could not load accounts" error={error.message} onRetry={refetch} />
   if (!data) return <QueryError title="Could not load accounts" error="No response from server." onRetry={refetch} />
 
   const t = data.totals
-  const cards = [
-    ['Product sales', fmt(t.sales)],
-    ['Commission (booked)', fmt(t.commissionBooked), 'text-emerald-700'],
-    ['Commission (realized)', fmt(t.commissionRealized), 'text-emerald-700'],
-    ['Delivery fees collected', fmt(t.deliveryFees)],
-    ['Delivery income 10% (booked)', fmt(t.deliveryIncome10pctBooked), 'text-sky-700'],
-    ['Delivery income 10% (realized)', fmt(t.deliveryIncome10pctRealized), 'text-sky-700'],
-    ['Seller ad revenue (booked)', fmt(t.adRevenueBooked), 'text-fuchsia-700'],
-    ['Seller ad revenue (realized)', fmt(t.adRevenueRealized), 'text-fuchsia-700'],
-    ['Gross platform income (booked)', fmt(t.grossPlatformIncomeBooked), 'text-emerald-700'],
-    ['Gross platform income (realized)', fmt(t.grossPlatformIncomeRealized), 'text-emerald-700'],
-    ['Seller payouts owed', fmt(t.sellerPayoutsOwed), 'text-orange-600'],
-    ['Seller payouts sent', fmt(t.sellerPayoutsSent), 'text-emerald-600'],
-    ['Seller payouts pending', fmt(t.sellerPayoutsPending), 'text-amber-600'],
-    ['Received from buyers', fmt(t.receivedFromBuyers), 'text-emerald-700'],
-    ['Awaiting buyer payment', fmt(t.awaitingBuyerPayment), 'text-red-600'],
+
+  const summaryCards = [
+    { label: 'Gross Platform Income (Booked)', value: fmt(t.grossPlatformIncomeBooked), color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    { label: 'Gross Platform Income (Realized)', value: fmt(t.grossPlatformIncomeRealized), color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    { label: 'Seller Commission (7%) — Booked', value: fmt(t.commissionBooked), color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    { label: 'Seller Commission (7%) — Realized', value: fmt(t.commissionRealized), color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    { label: 'Rider Platform Fee (10%) — Booked', value: fmt(t.deliveryIncomeBooked), color: 'text-sky-700', bg: 'bg-sky-50' },
+    { label: 'Rider Platform Fee (10%) — Realized', value: fmt(t.deliveryIncomeRealized), color: 'text-sky-700', bg: 'bg-sky-50' },
+    { label: 'Ad Revenue — Booked', value: fmt(t.adRevenueBooked), color: 'text-fuchsia-700', bg: 'bg-fuchsia-50' },
+    { label: 'Ad Revenue — Realized', value: fmt(t.adRevenueRealized), color: 'text-fuchsia-700', bg: 'bg-fuchsia-50' },
   ]
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Top Summary */}
       <div className="bg-white rounded-xl border border-neutral-200 p-4">
-        <p className="text-sm text-neutral-600">Transparent books — commission is {Math.round(data.rate * 100)}% of each sale (delivery fees are not commissioned). {t.orders} active orders.</p>
-        <button className="mt-3 flex items-center gap-1.5 text-xs font-bold text-white px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700">
-          <Download size={14} /> Export CSV
-        </button>
+        <h2 className="font-bold text-lg mb-1">💰 Transparent Books — All Income Streams</h2>
+        <p className="text-sm text-neutral-600">
+          Commission is <strong>{Math.round(data.rate * 100)}%</strong> on product sales (delivery excluded).
+          Rider fee is <strong>10%</strong> on delivery. You have <strong>{data.streams.length}</strong> income streams.
+        </p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {cards.map(([label, value, colorClass]) => (
-          <div key={label} className="bg-white rounded-xl border border-neutral-200 p-4">
-            <p className="text-xs text-neutral-500">{label}</p>
-            <p className={`mt-1 font-extrabold text-lg ${colorClass ?? ''}`}>{value}</p>
+
+      {/* Summary Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {summaryCards.map((card) => (
+          <div key={card.label} className={`rounded-xl border border-neutral-200 p-4 ${card.bg}`}>
+            <p className="text-xs text-neutral-500">{card.label}</p>
+            <p className={`mt-1 font-extrabold text-lg ${card.color}`}>{card.value}</p>
           </div>
         ))}
+      </div>
+
+      {/* Income Streams Overview Table */}
+      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-neutral-100">
+          <h3 className="font-bold text-sm">📊 Income Streams Overview</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+              <tr>
+                <th className="px-4 py-2.5">Income Stream</th>
+                <th className="px-4 py-2.5">Rule</th>
+                <th className="px-4 py-2.5 text-right">Booked</th>
+                <th className="px-4 py-2.5 text-right">Realized</th>
+                <th className="px-4 py-2.5 text-right">Pending</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.streams.map((s: any) => (
+                <tr key={s.stream} className="border-t border-neutral-100">
+                  <td className="px-4 py-3 font-medium">{s.stream}</td>
+                  <td className="px-4 py-3 text-neutral-500 text-xs">{s.rule}</td>
+                  <td className="px-4 py-3 text-right font-bold">{fmt(s.booked)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-emerald-700">{fmt(s.realized)}</td>
+                  <td className="px-4 py-3 text-right text-amber-600">{fmt(s.booked - s.realized)}</td>
+                </tr>
+              ))}
+              <tr className="border-t-2 border-neutral-200 bg-neutral-50 font-bold">
+                <td className="px-4 py-3">TOTAL</td>
+                <td className="px-4 py-3"></td>
+                <td className="px-4 py-3 text-right">{fmt(t.grossPlatformIncomeBooked)}</td>
+                <td className="px-4 py-3 text-right text-emerald-700">{fmt(t.grossPlatformIncomeRealized)}</td>
+                <td className="px-4 py-3 text-right text-amber-600">{fmt(t.grossPlatformIncomeBooked - t.grossPlatformIncomeRealized)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* SELLER COMMISSION TABLE */}
+      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+          <h3 className="font-bold text-sm">🏪 Seller Commissions (7% of product sales)</h3>
+          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-bold">
+            {data.sellers.length} sellers
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
+            <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+              <tr>
+                <th className="px-4 py-2.5">Seller</th>
+                <th className="px-4 py-2.5">Phone</th>
+                <th className="px-4 py-2.5 text-right">Orders</th>
+                <th className="px-4 py-2.5 text-right">Total Sales</th>
+                <th className="px-4 py-2.5 text-right">Commission (Booked)</th>
+                <th className="px-4 py-2.5 text-right">Commission (Realized)</th>
+                <th className="px-4 py-2.5 text-right">Payout Owed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.sellers.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-neutral-400">No seller orders yet.</td></tr>
+              ) : (
+                data.sellers.map((s: any) => (
+                  <tr key={s.sellerId} className="border-t border-neutral-100">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{s.shopName}</div>
+                      <div className="text-xs text-neutral-400">{s.ownerName}</div>
+                    </td>
+                    <td className="px-4 py-3 text-neutral-500">{s.phone}</td>
+                    <td className="px-4 py-3 text-right font-bold">{s.orders}</td>
+                    <td className="px-4 py-3 text-right">{fmt(s.totalSales)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-emerald-700">{fmt(s.commissionBooked)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-emerald-700">{fmt(s.commissionRealized)}</td>
+                    <td className="px-4 py-3 text-right text-orange-600">{fmt(s.payoutOwed)}</td>
+                  </tr>
+                ))
+              )}
+              {data.sellers.length > 0 && (
+                <tr className="border-t-2 border-neutral-200 bg-neutral-50 font-bold">
+                  <td className="px-4 py-3" colSpan={2}>TOTAL</td>
+                  <td className="px-4 py-3 text-right">{data.sellers.reduce((sum: number, s: any) => sum + s.orders, 0)}</td>
+                  <td className="px-4 py-3 text-right">{fmt(data.sellers.reduce((sum: number, s: any) => sum + s.totalSales, 0))}</td>
+                  <td className="px-4 py-3 text-right text-emerald-700">{fmt(data.sellers.reduce((sum: number, s: any) => sum + s.commissionBooked, 0))}</td>
+                  <td className="px-4 py-3 text-right text-emerald-700">{fmt(data.sellers.reduce((sum: number, s: any) => sum + s.commissionRealized, 0))}</td>
+                  <td className="px-4 py-3 text-right text-orange-600">{fmt(data.sellers.reduce((sum: number, s: any) => sum + s.payoutOwed, 0))}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* RIDER / DELIVERY TABLE */}
+      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+          <h3 className="font-bold text-sm">🚚 Rider / Delivery Platform Fees (10% of delivery)</h3>
+          <span className="text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-full font-bold">
+            {data.riders.length} riders
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[800px]">
+            <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+              <tr>
+                <th className="px-4 py-2.5">Rider</th>
+                <th className="px-4 py-2.5">Area</th>
+                <th className="px-4 py-2.5">Vehicle</th>
+                <th className="px-4 py-2.5 text-right">Orders</th>
+                <th className="px-4 py-2.5 text-right">Delivery Fees</th>
+                <th className="px-4 py-2.5 text-right">Your 10% (Booked)</th>
+                <th className="px-4 py-2.5 text-right">Your 10% (Realized)</th>
+                <th className="px-4 py-2.5 text-right">Rider Share (Booked)</th>
+                <th className="px-4 py-2.5 text-right">Rider Share (Realized)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.riders.length === 0 ? (
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-neutral-400">No rider deliveries yet.</td></tr>
+              ) : (
+                data.riders.map((r: any) => (
+                  <tr key={r.riderId} className="border-t border-neutral-100">
+                    <td className="px-4 py-3 font-medium">{r.fullName}</td>
+                    <td className="px-4 py-3 text-neutral-500">{r.area}</td>
+                    <td className="px-4 py-3 text-neutral-500 text-xs uppercase">{r.vehicleType}</td>
+                    <td className="px-4 py-3 text-right font-bold">{r.orders}</td>
+                    <td className="px-4 py-3 text-right">{fmt(r.totalDeliveryFees)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-sky-700">{fmt(r.platformIncomeBooked)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-sky-700">{fmt(r.platformIncomeRealized)}</td>
+                    <td className="px-4 py-3 text-right text-orange-600">{fmt(r.riderShareBooked)}</td>
+                    <td className="px-4 py-3 text-right text-orange-600">{fmt(r.riderShareRealized)}</td>
+                  </tr>
+                ))
+              )}
+              {data.riders.length > 0 && (
+                <tr className="border-t-2 border-neutral-200 bg-neutral-50 font-bold">
+                  <td className="px-4 py-3" colSpan={3}>TOTAL</td>
+                  <td className="px-4 py-3 text-right">{data.riders.reduce((sum: number, r: any) => sum + r.orders, 0)}</td>
+                  <td className="px-4 py-3 text-right">{fmt(data.riders.reduce((sum: number, r: any) => sum + r.totalDeliveryFees, 0))}</td>
+                  <td className="px-4 py-3 text-right text-sky-700">{fmt(data.riders.reduce((sum: number, r: any) => sum + r.platformIncomeBooked, 0))}</td>
+                  <td className="px-4 py-3 text-right text-sky-700">{fmt(data.riders.reduce((sum: number, r: any) => sum + r.platformIncomeRealized, 0))}</td>
+                  <td className="px-4 py-3 text-right text-orange-600">{fmt(data.riders.reduce((sum: number, r: any) => sum + r.riderShareBooked, 0))}</td>
+                  <td className="px-4 py-3 text-right text-orange-600">{fmt(data.riders.reduce((sum: number, r: any) => sum + r.riderShareRealized, 0))}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* AFFILIATE TABLE */}
+      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+          <h3 className="font-bold text-sm">🤝 Affiliate Commissions</h3>
+          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold">
+            {data.affiliates.length} affiliates · Not yet active
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[600px]">
+            <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+              <tr>
+                <th className="px-4 py-2.5">Name</th>
+                <th className="px-4 py-2.5">Phone</th>
+                <th className="px-4 py-2.5">Code</th>
+                <th className="px-4 py-2.5">Channel</th>
+                <th className="px-4 py-2.5 text-right">Referrals</th>
+                <th className="px-4 py-2.5 text-right">Commission</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.affiliates.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-neutral-400">No affiliates registered yet.</td></tr>
+              ) : (
+                data.affiliates.map((a: any) => (
+                  <tr key={a.affiliateId} className="border-t border-neutral-100">
+                    <td className="px-4 py-3 font-medium">{a.name}</td>
+                    <td className="px-4 py-3 text-neutral-500">{a.phone}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{a.code}</td>
+                    <td className="px-4 py-3 text-neutral-500">{a.channel}</td>
+                    <td className="px-4 py-3 text-right">{a.referrals}</td>
+                    <td className="px-4 py-3 text-right text-neutral-400">—</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-3 bg-amber-50 border-t border-amber-100">
+          <p className="text-xs text-amber-700">
+            💡 <strong>Coming soon:</strong> Link affiliates to orders and set a commission rate (e.g., 2-5% per referral).
+            Currently registered but not earning.
+          </p>
+        </div>
       </div>
     </div>
   )
 }
 
-// ============================================
+
 // DELIVERY PARTNERS
 // ============================================
 function DeliveryPartners({ adminKey }: { adminKey: string }) {
