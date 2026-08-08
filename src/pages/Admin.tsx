@@ -552,7 +552,7 @@ function Orders({ adminKey }: { adminKey: string }) {
                   ))}
                   <div className="flex justify-between text-sm text-neutral-500 pt-2 border-t border-neutral-200">
                     <span>Subtotal</span>
-                    <span>{fmt(o.subtotal)}</span>
+                    <span>{fmt((o.total || 0) + (o.commissionFee || 0) + (o.deliveryFee || 0))}</span>
                   </div>
                   <div className="flex justify-between text-sm text-neutral-500">
                     <span>Delivery</span>
