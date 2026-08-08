@@ -591,7 +591,6 @@ function Orders({ adminKey }: { adminKey: string }) {
     </div>
   )
 }
-}
 
 // ============================================
 // ACCOUNTS (Transparent Books)
