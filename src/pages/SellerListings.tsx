@@ -74,7 +74,7 @@ export default function SellerListings() {
   const [justAdded, setJustAdded] = useState(false)
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [onPhoto, setOnPhoto] = useState<string>("");
+  const onPhoto = (file: File) => { setPhoto(file); };
 
   const seller = lookup.data
   const approved = seller?.status === 'approved'
