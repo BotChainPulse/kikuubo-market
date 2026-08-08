@@ -89,13 +89,13 @@ export default function MyOrders() {
                   <div>
                     <span className="font-extrabold tracking-widest" style={{ color: ORANGE }}>{o.code}</span>
                     <span className="ml-3 text-xs text-neutral-500">
-                      {new Date(o.createdAt).toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' })}
+                      {o.createdAt ? new Date(o.createdAt).toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
                     </span>
                   </div>
                   <StatusPill status={o.status} />
                 </div>
                 <div className="mt-3 divide-y divide-neutral-100 text-sm">
-                  {o.items.map((i) => (
+                  {Array.isArray(o.items) && o.items.map((i) => (
                     <div key={i.id} className="py-1.5 flex justify-between gap-3">
                       <span className="text-neutral-700">{i.qty} × {i.name}</span>
                       <span className="font-semibold whitespace-nowrap">{fmt(i.price * i.qty)}</span>
