@@ -37,8 +37,10 @@ const conditions = [
   { value: 'used', label: 'Used', hint: 'Second-hand, honestly described.' },
 ] as const
 
-function fmt(n: number) {
-  return 'UGX ' + n.toLocaleString('en-US')
+function fmt(n: number | null | undefined) {
+  const val = Number(n);
+  if (!Number.isFinite(val)) return 'UGX 0';
+  return 'UGX ' + val.toLocaleString('en-US');
 }
 
 function StatusPill({ status }: { status: string }) {
