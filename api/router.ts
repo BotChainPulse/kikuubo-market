@@ -4,6 +4,7 @@ import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
 import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings } from "../db/schema";
 import { adminRouter } from "./admin";
+import { trustRouter } from "./trust";
 import { bootstrapRouter } from "./bootstrap";
 import { migrateRouter } from "./migrate";
 
@@ -33,6 +34,7 @@ async function upsertCustomer(db: any, name: string, phone: string, location?: s
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
   admin: adminRouter,
+  trust: trustRouter,
   bootstrap: bootstrapRouter,
   migrate: migrateRouter,
 

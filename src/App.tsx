@@ -21,6 +21,8 @@ import Pay from './pages/Pay'
 import MyOrders from './pages/MyOrders'
 import Account from './pages/Account'
 import ProductDetail from './pages/ProductDetail'
+import SouqHubs from './pages/SouqHubs'
+import GroupBuying from './pages/GroupBuying'
 
 export default function App() {
   return (
@@ -48,6 +50,8 @@ export default function App() {
         <Route path="/mall" element={<Catalog />} />
         <Route path="/boda" element={<Boda />} />
         <Route path="/pay" element={<Pay />} />
+        <Route path="/hubs" element={<SouqHubs />} />
+        <Route path="/group-buying" element={<GroupBuying />} />
       </Routes>
     </CartProvider>
   )

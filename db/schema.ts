@@ -255,3 +255,128 @@ export const returns = mysqlTable("returns", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   resolvedAt: timestamp("resolved_at"),
 });
+
+// ============================================================
+// TRUST ARCHITECTURE — NEW TABLES
+// ============================================================
+
+export const escrowTransactions = mysqlTable("escrow_transactions", {
+  id: serial("id").primaryKey(),
+  orderId: bigint("order_id", { mode: "number", unsigned: true }).notNull(),
+  buyerPhone: varchar("buyer_phone", { length: 32 }).notNull(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull(),
+  amount: int("amount").notNull(),
+  platformFee: int("platform_fee").notNull().default(0),
+  status: mysqlEnum("status", ["held", "released", "disputed", "refunded", "cancelled"]).notNull().default("held"),
+  heldAt: timestamp("held_at").notNull().defaultNow(),
+  releasedAt: timestamp("released_at"),
+  disputedAt: timestamp("disputed_at"),
+  resolvedAt: timestamp("resolved_at"),
+  resolution: varchar("resolution", { length: 50 }),
+  disputeReason: text("dispute_reason"),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const souqHubs = mysqlTable("souq_hubs", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  hubType: mysqlEnum("hub_type", ["verification_center", "pickup_dropoff", "return_center", "full_service"]).notNull().default("full_service"),
+  address: text("address").notNull(),
+  town: varchar("town", { length: 100 }).notNull(),
+  district: varchar("district", { length: 100 }).notNull(),
+  region: varchar("region", { length: 100 }).notNull(),
+  coordinates: json("coordinates"),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  operatingHours: varchar("operating_hours", { length: 100 }),
+  managerName: varchar("manager_name", { length: 100 }),
+  isActive: boolean("is_active").notNull().default(true),
+  services: json("services").$type<string[]>().default([]),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const communityAgents = mysqlTable("community_agents", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  town: varchar("town", { length: 100 }).notNull(),
+  district: varchar("district", { length: 100 }).notNull(),
+  organization: varchar("organization", { length: 255 }),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull().default("5.00"),
+  totalOrdersAggregated: int("total_orders_aggregated").notNull().default(0),
+  totalCommissionEarned: int("total_commission_earned").notNull().default(0),
+  status: mysqlEnum("status", ["pending", "active", "suspended", "inactive"]).notNull().default("pending"),
+  verifiedBy: varchar("verified_by", { length: 32 }),
+  verifiedAt: timestamp("verified_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const groupOrders = mysqlTable("group_orders", {
+  id: serial("id").primaryKey(),
+  agentId: bigint("agent_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  targetQuantity: int("target_quantity").notNull(),
+  currentQuantity: int("current_quantity").notNull().default(0),
+  unitPrice: int("unit_price").notNull(),
+  originalPrice: int("original_price").notNull(),
+  deadline: timestamp("deadline").notNull(),
+  status: mysqlEnum("status", ["open", "locked", "ordered", "delivered", "cancelled"]).notNull().default("open"),
+  deliveryHubId: bigint("delivery_hub_id", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const groupOrderParticipants = mysqlTable("group_order_participants", {
+  id: serial("id").primaryKey(),
+  groupOrderId: bigint("group_order_id", { mode: "number", unsigned: true }).notNull(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  quantity: int("quantity").notNull(),
+  amountPaid: int("amount_paid").notNull(),
+  paidAt: timestamp("paid_at"),
+  status: mysqlEnum("status", ["pending", "paid", "delivered"]).notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const trustScores = mysqlTable("trust_scores", {
+  id: serial("id").primaryKey(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull().unique(),
+  verificationLevel: mysqlEnum("verification_level", ["basic", "verified", "premium", "gold"]).notNull().default("basic"),
+  businessVerified: boolean("business_verified").notNull().default(false),
+  idVerified: boolean("id_verified").notNull().default(false),
+  locationVerified: boolean("location_verified").notNull().default(false),
+  stockVerified: boolean("stock_verified").notNull().default(false),
+  deliveryScore: decimal("delivery_score", { precision: 4, scale: 2 }).notNull().default("5.00"),
+  qualityScore: decimal("quality_score", { precision: 4, scale: 2 }).notNull().default("5.00"),
+  responseScore: decimal("response_score", { precision: 4, scale: 2 }).notNull().default("5.00"),
+  overallScore: decimal("overall_score", { precision: 4, scale: 2 }).notNull().default("5.00"),
+  totalTransactions: int("total_transactions").notNull().default(0),
+  successfulTransactions: int("successful_transactions").notNull().default(0),
+  disputeCount: int("dispute_count").notNull().default(0),
+  positiveReviews: int("positive_reviews").notNull().default(0),
+  negativeReviews: int("negative_reviews").notNull().default(0),
+  lastVerifiedAt: timestamp("last_verified_at"),
+  nextVerificationDue: timestamp("next_verification_due"),
+  badge: mysqlEnum("badge", ["none", "verified", "trusted", "gold", "platinum"]).notNull().default("none"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const sellerSubscriptions = mysqlTable("seller_subscriptions", {
+  id: serial("id").primaryKey(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull().unique(),
+  tier: mysqlEnum("tier", ["free", "basic", "verified", "premium"]).notNull().default("free"),
+  monthlyFee: int("monthly_fee").notNull().default(0),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull().default("10.00"),
+  features: json("features").$type<string[]>().default([]),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
