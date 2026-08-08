@@ -72,6 +72,9 @@ export default function SellerListings() {
   })
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const [justAdded, setJustAdded] = useState(false)
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [onPhoto, setOnPhoto] = useState<string>("");
 
   const seller = lookup.data
   const approved = seller?.status === 'approved'
