@@ -142,7 +142,7 @@ export const trustRouter = createRouter({
       const db = getDb();
       return db.select().from(communityAgents).where(and(eq(communityAgents.status, "active"), eq(communityAgents.town, input.town))).orderBy(communityAgents.name);
     }),
-    apply: publicQuery
+    applyAgent: publicQuery
       .input(z.object({
         name: z.string().min(2), phone: z.string().min(9),
         town: z.string(), district: z.string(), organization: z.string().optional(),
