@@ -438,10 +438,13 @@ function Orders({ adminKey }: { adminKey: string }) {
   })
 
   if (isLoading) return <p className="text-neutral-500">Loading…</p>
-  if (isError) return <QueryError title="Could not load orders" error={error.message} onRetry={refetch} />
+  if (isError) return <QueryError title="Could not load orders" error={error?.message ?? 'Unknown error'} onRetry={refetch} />
   if (!data) return <QueryError title="Could not load orders" error="No response from server." onRetry={refetch} />
 
   const approvedPartners = partnersData?.partners?.filter((p: any) => p.status === 'approved') ?? []
+
+  // Defensive: ensure data is array
+  const ordersList = Array.isArray(data) ? data : []
 
   return (
     <div className="space-y-4">
@@ -457,127 +460,137 @@ function Orders({ adminKey }: { adminKey: string }) {
       </div>
 
       <div className="space-y-3">
-        {data.map((o: any) => (
-          <div key={o.id} className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
-            <div className="p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <button onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)} className="flex items-center gap-1">
-                  {expandedOrder === o.id ? <ChevronDown size={16} /> : <ChevronDown size={16} className="rotate-[-90deg]" />}
-                </button>
-                <span className="font-mono font-bold">{o.code}</span>
-                <StatusPill status={o.status} />
-                <span className={`text-xs px-2 py-0.5 rounded-full ${o.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : o.paymentStatus === 'pending_confirmation' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                  {paymentLabel(o.paymentStatus)}
-                </span>
-                {o.paidOut && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Paid Out</span>}
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <span className="font-extrabold text-lg">{fmt(o.total)}</span>
-                <select value={o.status} onChange={(e) => setStatus.mutate({ key: adminKey, id: o.id, status: e.target.value as any })} className="text-sm rounded-lg border border-neutral-300 px-3 py-1.5 bg-white">
-                  {ORDER_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-                </select>
-                <select value={o.paymentStatus} onChange={(e) => setPayment.mutate({ key: adminKey, id: o.id, status: e.target.value as any })} className="text-sm rounded-lg border border-neutral-300 px-3 py-1.5 bg-white">
-                  <option value="unpaid">Unpaid</option>
-                  <option value="pending_confirmation">Confirming</option>
-                  <option value="paid">Paid</option>
-                </select>
-              </div>
-              <p className="mt-2 text-sm text-neutral-600">
-                {(o.customerName ?? 'Unknown')} · {(o.phone ?? '-')} · {((o.address ?? '').slice(0, 60))}{((o.address ?? '').length > 60 ? '...' : '')} · {(o.paymentMethod ?? '-')} · {new Date(o.createdAt).toLocaleString('en-UG')}
-              </p>
+        {ordersList.map((o: any) => {
+          const safeTotal = Number(o?.total ?? 0)
+          const safeDelivery = Number(o?.deliveryFee ?? 0)
+          const safeCommission = Number(o?.commissionFee ?? 0)
+          const safeSubtotal = safeTotal + safeCommission + safeDelivery
+          const items = Array.isArray(o?.items) ? o.items : []
 
-              {/* Delivery Assignment */}
-              {o.status !== 'cancelled' && o.status !== 'delivered' && (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {o.deliveryPartnerId ? (
-                    <div className="flex items-center gap-2">
-                      <Truck size={14} className="text-sky-600" />
-                      <span className="text-xs text-sky-700 font-medium">Rider assigned</span>
-                      <button
-                        onClick={() => unassignDelivery.mutate({ key: adminKey, orderId: o.id })}
-                        disabled={unassignDelivery.isPending}
-                        className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-medium disabled:opacity-50"
-                      >
-                        Unassign
-                      </button>
-                      <button
-                        onClick={() => markDelivered.mutate({ key: adminKey, orderId: o.id })}
-                        disabled={markDelivered.isPending}
-                        className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-700 font-medium disabled:opacity-50"
-                      >
-                        <CheckCircle size={12} className="inline mr-1" /> Mark Delivered
-                      </button>
+          return (
+            <div key={o?.id ?? Math.random()} className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+              <div className="p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)} className="flex items-center gap-1">
+                    {expandedOrder === o.id ? <ChevronDown size={16} /> : <ChevronDown size={16} className="rotate-[-90deg]" />}
+                  </button>
+                  <span className="font-mono font-bold">{o?.code ?? 'N/A'}</span>
+                  <StatusPill status={o?.status ?? 'placed'} />
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${o?.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : o?.paymentStatus === 'pending_confirmation' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                    {paymentLabel(o?.paymentStatus)}
+                  </span>
+                  {o?.paidOut && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Paid Out</span>}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <span className="font-extrabold text-lg">{fmt(safeTotal)}</span>
+                  <select value={o?.status ?? 'placed'} onChange={(e) => setStatus.mutate({ key: adminKey, id: o.id, status: e.target.value as any })} className="text-sm rounded-lg border border-neutral-300 px-3 py-1.5 bg-white">
+                    {ORDER_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                  </select>
+                  <select value={o?.paymentStatus ?? 'unpaid'} onChange={(e) => setPayment.mutate({ key: adminKey, id: o.id, status: e.target.value as any })} className="text-sm rounded-lg border border-neutral-300 px-3 py-1.5 bg-white">
+                    <option value="unpaid">Unpaid</option>
+                    <option value="pending_confirmation">Confirming</option>
+                    <option value="paid">Paid</option>
+                  </select>
+                </div>
+                <p className="mt-2 text-sm text-neutral-600">
+                  {(o?.customerName ?? 'Unknown')} · {(o?.phone ?? '-')} · {((o?.address ?? '').slice(0, 60))}{((o?.address ?? '').length > 60 ? '...' : '')} · {(o?.paymentMethod ?? '-')} · {o?.createdAt ? new Date(o.createdAt).toLocaleString('en-UG') : '-'}
+                </p>
+
+                {/* Delivery Assignment */}
+                {o?.status !== 'cancelled' && o?.status !== 'delivered' && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {o?.deliveryPartnerId ? (
+                      <div className="flex items-center gap-2">
+                        <Truck size={14} className="text-sky-600" />
+                        <span className="text-xs text-sky-700 font-medium">Rider assigned</span>
+                        <button
+                          onClick={() => unassignDelivery.mutate({ key: adminKey, orderId: o.id })}
+                          disabled={unassignDelivery.isPending}
+                          className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-medium disabled:opacity-50"
+                        >
+                          Unassign
+                        </button>
+                        <button
+                          onClick={() => markDelivered.mutate({ key: adminKey, orderId: o.id })}
+                          disabled={markDelivered.isPending}
+                          className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-700 font-medium disabled:opacity-50"
+                        >
+                          <CheckCircle size={12} className="inline mr-1" /> Mark Delivered
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-neutral-500">Assign rider:</span>
+                        <select
+                          value={assignPartnerId ?? ''}
+                          onChange={(e) => setAssignPartnerId(e.target.value ? parseInt(e.target.value) : null)}
+                          className="text-xs rounded-lg border border-neutral-300 px-2 py-1 bg-white"
+                        >
+                          <option value="">Select rider...</option>
+                          {approvedPartners.map((p: any) => (
+                            <option key={p.id} value={p.id}>{p.fullName} ({p.vehicleType}) — {p.area}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => {
+                            if (assignPartnerId) {
+                              assignDelivery.mutate({ key: adminKey, orderId: o.id, partnerId: assignPartnerId })
+                              setAssignPartnerId(null)
+                            }
+                          }}
+                          disabled={!assignPartnerId || assignDelivery.isPending}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium disabled:opacity-50"
+                        >
+                          {assignDelivery.isPending ? 'Assigning...' : 'Assign'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Expanded Order Details */}
+              {expandedOrder === o?.id && items.length > 0 && (
+                <div className="border-t border-neutral-100 p-4 bg-neutral-50">
+                  <h4 className="text-xs font-bold text-neutral-500 uppercase mb-2">Order Items</h4>
+                  <div className="space-y-2">
+                    {items.map((it: any, idx: number) => {
+                      const itQty = Number(it?.qty ?? 1)
+                      const itPrice = Number(it?.price ?? 0)
+                      return (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span>{itQty} × {it?.name ?? 'Item'}</span>
+                          <span className="font-medium">{fmt(itPrice * itQty)}</span>
+                        </div>
+                      )
+                    })}
+                    <div className="flex justify-between text-sm text-neutral-500 pt-2 border-t border-neutral-200">
+                      <span>Subtotal</span>
+                      <span>{fmt(safeSubtotal)}</span>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500">Assign rider:</span>
-                      <select
-                        value={assignPartnerId ?? ''}
-                        onChange={(e) => setAssignPartnerId(e.target.value ? parseInt(e.target.value) : null)}
-                        className="text-xs rounded-lg border border-neutral-300 px-2 py-1 bg-white"
-                      >
-                        <option value="">Select rider...</option>
-                        {approvedPartners.map((p: any) => (
-                          <option key={p.id} value={p.id}>{p.fullName} ({p.vehicleType}) — {p.area}</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => {
-                          if (assignPartnerId) {
-                            assignDelivery.mutate({ key: adminKey, orderId: o.id, partnerId: assignPartnerId })
-                            setAssignPartnerId(null)
-                          }
-                        }}
-                        disabled={!assignPartnerId || assignDelivery.isPending}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium disabled:opacity-50"
-                      >
-                        {assignDelivery.isPending ? 'Assigning...' : 'Assign'}
-                      </button>
+                    <div className="flex justify-between text-sm text-neutral-500">
+                      <span>Delivery</span>
+                      <span>{fmt(safeDelivery)}</span>
                     </div>
-                  )}
+                    <div className="flex justify-between text-sm text-neutral-500">
+                      <span>Commission</span>
+                      <span>{fmt(safeCommission)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-sm pt-2 border-t border-neutral-200">
+                      <span>Total Paid</span>
+                      <span>{fmt(safeTotal)}</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-
-            {/* Expanded Order Details */}
-            {expandedOrder === o.id && o.items && (
-              <div className="border-t border-neutral-100 p-4 bg-neutral-50">
-                <h4 className="text-xs font-bold text-neutral-500 uppercase mb-2">Order Items</h4>
-                <div className="space-y-2">
-                  {o.items.map((it: any, idx: number) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span>{it.qty} × {it.name}</span>
-                      <span className="font-medium">{fmt(it.price * it.qty)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between text-sm text-neutral-500 pt-2 border-t border-neutral-200">
-                    <span>Subtotal</span>
-                    <span>{fmt((o.total || 0) + (o.commissionFee || 0) + (o.deliveryFee || 0))}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-neutral-500">
-                    <span>Delivery</span>
-                    <span>{fmt(o.deliveryFee)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-neutral-500">
-                    <span>Commission</span>
-                    <span>{fmt(o.commissionFee)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-sm pt-2 border-t border-neutral-200">
-                    <span>Total</span>
-                    <span>{fmt(o.total)}</span>
-                  </div>
-                </div>
-                {o.paymentRef && (
-                  <p className="mt-3 text-xs text-neutral-500">Payment Ref: <span className="font-mono">{o.paymentRef}</span></p>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-        {data.length === 0 && <p className="text-neutral-500">No orders found.</p>}
+          )
+        })}
+        {ordersList.length === 0 && <p className="text-neutral-500">No orders found.</p>}
       </div>
     </div>
   )
+}
 }
 
 // ============================================
