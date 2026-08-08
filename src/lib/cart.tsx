@@ -1,57 +1,73 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
 
 export type CartItem = {
-  itemType: 'product' | 'menu_item'
-  itemId: number
+  id: number
   name: string
   price: number
   qty: number
+  image?: string
+  sellerId?: number
+  sellerName?: string
 }
 
-type CartCtx = {
+type CartContextType = {
   items: CartItem[]
-  add: (item: Omit<CartItem, 'qty'>, qty?: number) => void
-  remove: (itemType: string, itemId: number) => void
-  setQty: (itemType: string, itemId: number, qty: number) => void
+  add: (item: CartItem) => void
+  remove: (id: number) => void
+  updateQty: (id: number, qty: number) => void
   clear: () => void
-  count: number
-  subtotal: number
+  total: number
 }
 
-const Ctx = createContext<CartCtx | null>(null)
+const CartContext = createContext<CartContextType | null>(null)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem('ugsouq_cart') ?? '[]') } catch { return [] }
+    try {
+      const raw = localStorage.getItem('ugsouq_cart')
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
   })
-  useEffect(() => { localStorage.setItem('ugsouq_cart', JSON.stringify(items)) }, [items])
 
-  const add: CartCtx['add'] = (item, qty = 1) =>
+  const save = (next: CartItem[]) => {
+    setItems(next)
+    localStorage.setItem('ugsouq_cart', JSON.stringify(next))
+  }
+
+  const add = (item: CartItem) => {
     setItems((prev) => {
-      const i = prev.findIndex((p) => p.itemType === item.itemType && p.itemId === item.itemId)
-      if (i >= 0) { const next = [...prev]; next[i] = { ...next[i], qty: next[i].qty + qty }; return next }
-      return [...prev, { ...item, qty }]
+      const existing = prev.find((i) => i.id === item.id)
+      const next = existing
+        ? prev.map((i) => (i.id === item.id ? { ...i, qty: i.qty + item.qty } : i))
+        : [...prev, item]
+      localStorage.setItem('ugsouq_cart', JSON.stringify(next))
+      return next
     })
-  const remove: CartCtx['remove'] = (t, id) => setItems((p) => p.filter((i) => !(i.itemType === t && i.itemId === id)))
-  const setQty: CartCtx['setQty'] = (t, id, qty) =>
-    setItems((p) => (qty <= 0 ? p.filter((i) => !(i.itemType === t && i.itemId === id)) : p.map((i) => (i.itemType === t && i.itemId === id ? { ...i, qty } : i))))
-  const clear = () => setItems([])
+  }
+
+  const remove = (id: number) => save(items.filter((i) => i.id !== id))
+  const updateQty = (id: number, qty: number) =>
+    save(qty <= 0 ? items.filter((i) => i.id !== id) : items.map((i) => (i.id === id ? { ...i, qty } : i)))
+  const clear = () => save([])
+  const total = items.reduce((s, i) => s + i.price * i.qty, 0)
 
   return (
-    <Ctx.Provider value={{
-      items, add, remove, setQty, clear,
-      count: items.reduce((s, i) => s + i.qty, 0),
-      subtotal: items.reduce((s, i) => s + i.price * i.qty, 0),
-    }}>
+    <CartContext.Provider value={{ items, add, remove, updateQty, clear, total }}>
       {children}
-    </Ctx.Provider>
+    </CartContext.Provider>
   )
 }
 
 export function useCart() {
-  const c = useContext(Ctx)
-  if (!c) throw new Error('useCart outside CartProvider')
-  return c
+  const ctx = useContext(CartContext)
+  if (!ctx) throw new Error('useCart must be inside CartProvider')
+  return ctx
 }
 
-export const fmt = (n: number) => 'UGX ' + n.toLocaleString('en-UG')
+export const fmt = (n: number | string | null | undefined) => {
+  const val = typeof n === 'string' ? parseFloat(n) : Number(n);
+  if (!Number.isFinite(val)) return 'UGX 0';
+  return 'UGX ' + val.toLocaleString('en-UG');
+};
