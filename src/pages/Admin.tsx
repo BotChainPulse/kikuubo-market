@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 import { ShieldCheck, Store, Package, Users, LayoutDashboard, LogOut, Check, X, ChevronDown, ClipboardList, Wallet, Download, Banknote, Bike, Megaphone, ScrollText, Search, Settings, RotateCcw, Bell, BarChart3, Truck, CheckCircle } from 'lucide-react'
 import { trpc } from '../providers/trpc'
 import { fmt } from '../lib/cart'
-import { paymentLabel } from '../lib/payStatus'
 import { ORANGE } from '../lib/site'
 import PayoutPanel from '../components/admin/PayoutPanel'
 import SettingsPanel from '../components/admin/SettingsPanel'
@@ -477,7 +476,7 @@ function Orders({ adminKey }: { adminKey: string }) {
                   <span className="font-mono font-bold">{o?.code ?? 'N/A'}</span>
                   <StatusPill status={o?.status ?? 'placed'} />
                   <span className={`text-xs px-2 py-0.5 rounded-full ${o?.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : o?.paymentStatus === 'pending_confirmation' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                    {paymentLabel(o?.paymentStatus)}
+                    {o?.paymentStatus === 'paid' ? 'Paid' : o?.paymentStatus === 'pending_confirmation' ? 'Confirming' : 'Unpaid'}
                   </span>
                   {o?.paidOut && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Paid Out</span>}
                 </div>
